@@ -1,0 +1,335 @@
+// Godelicious - Database Schema
+// Dev default: SQLite (zero setup). For production, switch provider to "postgresql"
+// and set DATABASE_URL to your Postgres connection string (see SETUP_GUIDE.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // change to "postgresql" for production
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  STAFF
+  VENUE_PARTNER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum EnquiryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DiscountType {
+  PERCENT
+  FLAT
+}
+
+enum SenderRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum BannerMediaType {
+  IMAGE
+  VIDEO
+}
+
+enum PaymentMethod {
+  ONLINE
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum SettlementStatus {
+  PENDING
+  PAID
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  phone         String?
+  passwordHash  String
+  role          Role     @default(CUSTOMER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders          Order[]
+  venueEnquiries  VenueEnquiry[]
+  inventoryLogs   InventoryLog[] @relation("StaffInventoryLogs")
+  messages        Message[] @relation("CustomerMessages")
+  notificationReads NotificationRead[]
+  reviews         Review[]
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  sortOrder Int        @default(0)
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  imageUrl     String?
+  isVeg        Boolean  @default(true)
+  isAvailable  Boolean  @default(true)
+  stockQty     Int      @default(0)
+  isCombo      Boolean  @default(false)
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  brandId      String?  // null = house brand (Godelicious itself)
+  brand        Brand?   @relation(fields: [brandId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orderItems     OrderItem[]
+  inventoryLogs  InventoryLog[]
+  comboGroups    ComboGroup[]
+}
+
+// A combo item (isCombo = true on MenuItem) has one or more ComboGroups,
+// e.g. "Choose your main", "Choose your drink". Each group has ComboOptions
+// the customer picks from — one selection per group at order time.
+model ComboGroup {
+  id          String       @id @default(uuid())
+  menuItemId  String
+  menuItem    MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name        String       // e.g. "Choose your main"
+  options     ComboOption[]
+  sortOrder   Int          @default(0)
+}
+
+model ComboOption {
+  id            String     @id @default(uuid())
+  comboGroupId  String
+  comboGroup    ComboGroup @relation(fields: [comboGroupId], references: [id], onDelete: Cascade)
+  label         String     // e.g. "Butter Chicken"
+  priceDelta    Float      @default(0) // extra cost for this choice, if any
+}
+
+model Order {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  status           OrderStatus   @default(PENDING)
+  totalAmount      Float
+  discountAmount   Float         @default(0)
+  couponCode       String?
+  deliveryAddress  String
+  latitude         Float?
+  longitude        Float?
+  eventDate        DateTime?
+  guestCount       Int?
+  contactPhone     String
+  notes            String?
+
+  paymentMethod    PaymentMethod @default(ONLINE)
+  paymentStatus    PaymentStatus @default(PENDING)
+  razorpayOrderId  String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  codConfirmedAt   DateTime?
+  codConfirmedBy   String?       // staff/admin user id who confirmed COD payment collection
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  items  OrderItem[]
+  review Review?
+}
+
+model OrderItem {
+  id               String    @id @default(uuid())
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId       String
+  menuItem         MenuItem  @relation(fields: [menuItemId], references: [id])
+  quantity         Int
+  price            Float // price at time of order (snapshot), includes any combo priceDelta
+  selectedOptions  String?   // JSON string: [{ groupName, optionLabel }] for combo items
+}
+
+model VenueEnquiry {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  venueName     String
+  location      String
+  eventDate     DateTime
+  guestCount    Int
+  budget        Float?
+  contactPhone  String
+  notes         String?
+  status        EnquiryStatus  @default(PENDING)
+  adminNote     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model InventoryLog {
+  id          String    @id @default(uuid())
+  menuItemId  String
+  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id])
+  changeQty   Int // positive = restock, negative = deduction
+  reason      String // "order", "restock", "adjustment", "wastage"
+  staffId     String?
+  staff       User?     @relation("StaffInventoryLogs", fields: [staffId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+model Coupon {
+  id              String        @id @default(uuid())
+  code            String        @unique // stored uppercase, e.g. "WELCOME10"
+  discountType    DiscountType
+  discountValue   Float         // percent (0-100) if PERCENT, rupees if FLAT
+  minOrderAmount  Float         @default(0)
+  maxUses         Int?          // null = unlimited
+  usedCount       Int           @default(0)
+  isActive        Boolean       @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime      @default(now())
+}
+
+// One simple support conversation per customer, with admin/staff replying.
+// senderRole distinguishes who sent each message; no separate "conversation"
+// table needed since a customer's whole thread is just "all messages where
+// customerId = this user".
+model Message {
+  id          String      @id @default(uuid())
+  customerId  String      // the customer this thread belongs to (set on both sides' messages)
+  customer    User        @relation("CustomerMessages", fields: [customerId], references: [id])
+  senderId    String      // who actually wrote this message (customer or a staff/admin id)
+  senderRole  SenderRole
+  body        String
+  readByAdmin Boolean     @default(false)
+  readByCustomer Boolean  @default(false)
+  createdAt   DateTime    @default(now())
+}
+
+model Banner {
+  id         String          @id @default(uuid())
+  mediaType  BannerMediaType
+  mediaUrl   String
+  title      String?
+  linkUrl    String?
+  sortOrder  Int             @default(0)
+  isActive   Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+}
+
+// Broadcast notifications (e.g. "20% off this weekend!"). Sent to ALL
+// customers at once. Per-user read tracking is done client-side via
+// NotificationRead rather than fan-out rows, to keep this cheap to send
+// regardless of customer count.
+model Notification {
+  id         String   @id @default(uuid())
+  title      String
+  body       String
+  createdAt  DateTime @default(now())
+
+  reads NotificationRead[]
+}
+
+model NotificationRead {
+  id              String       @id @default(uuid())
+  notificationId  String
+  notification    Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  readAt          DateTime     @default(now())
+
+  @@unique([notificationId, userId])
+}
+
+// OTP login. request-otp generates a code for a phone number (auto-creating
+// a bare CUSTOMER account if none exists for that phone); verify-otp checks
+// it and issues a normal JWT, same as password login.
+model OtpCode {
+  id         String   @id @default(uuid())
+  phone      String
+  code       String
+  expiresAt  DateTime
+  consumed   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// Single-row app-wide settings (minimum order amount, whether COD is offered).
+// Always looked up/updated via the fixed id "singleton" — simpler than a
+// dedicated key-value config table for a handful of fields.
+model AppSettings {
+  id              String   @id @default("singleton")
+  minOrderAmount  Float    @default(0)
+  codEnabled      Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  rating     Int      // 1-5
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+// A brand partner whose items are sold through Godelicious alongside the
+// house menu. Commission is the percentage Godelicious keeps; the rest is
+// owed to the brand and tracked via BrandSettlement.
+model Brand {
+  id                String   @id @default(uuid())
+  name              String
+  logoUrl           String?
+  contactEmail      String?
+  contactPhone      String?
+  commissionPercent Float    @default(15)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  menuItems    MenuItem[]
+  settlements  BrandSettlement[]
+}
+
+// A manually-created settlement period for a brand — admin generates one
+// (typically covering a date range), it shows total sales/commission/payout
+// computed from orders in that range, and admin marks it PAID once the
+// brand has actually been paid out (outside this system — bank transfer etc).
+model BrandSettlement {
+  id               String           @id @default(uuid())
+  brandId          String
+  brand            Brand            @relation(fields: [brandId], references: [id])
+  periodStart      DateTime
+  periodEnd        DateTime
+  totalSales       Float
+  commissionAmount Float
+  payoutAmount     Float
+  status           SettlementStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  paidAt           DateTime?
+}

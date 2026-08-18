@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #f7f5f1;
+  color: #2a2822;
+}
+
+/* Signature element: a scalloped edge evoking a stacked tiffin carrier —
+   used to separate the hero from the menu, and between category groups.
+   Built from a repeating radial gradient, no image assets needed. */
+.scallop-divider {
+  height: 18px;
+  background-image: radial-gradient(circle at 9px -4px, transparent 10px, #f7f5f1 10.5px);
+  background-size: 24px 18px;
+  background-repeat: repeat-x;
+}
+.scallop-divider--charcoal {
+  background-image: radial-gradient(circle at 9px -4px, transparent 10px, #1c1b19 10.5px);
+}
+.scallop-divider--cream {
+  background-image: radial-gradient(circle at 9px -4px, transparent 10px, #fbf8f2 10.5px);
+}
+
+.ticket-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-left: 3px solid currentColor;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+::selection {
+  background: #e8a33d;
+  color: #1c1b19;
+}
+
+:focus-visible {
+  outline: 2px solid #e8a33d;
+  outline-offset: 2px;
+}
