@@ -54,7 +54,9 @@ export default function OrdersPage() {
                   <span className="text-xs text-ink/40">{new Date(order.createdAt).toLocaleDateString()}</span>
                 </div>
                 <p className="text-sm text-ink/70">
-                  {order.items.map((i) => `${i.quantity}× ${i.menuItem.name}`).join(", ")}
+                  {order.items.length > 0
+                    ? order.items.map((i) => `${i.quantity}× ${i.menuItem.name}`).join(", ")
+                    : order.orderType?.name || "Booking"}
                 </p>
                 <p className="font-mono font-medium text-ink mt-1">₹{order.totalAmount.toFixed(0)}</p>
               </Link>

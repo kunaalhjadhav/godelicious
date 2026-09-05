@@ -72,19 +72,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-paper">
       <Nav />
-      <div className="max-w-sm mx-auto px-5 py-16">
+      <div className="max-w-sm mx-auto px-5 py-16 fade-in">
         <h1 className="font-display text-2xl text-ink mb-4">Sign in</h1>
 
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => { setMode("password"); setError(""); }}
-            className={`flex-1 text-sm py-2 rounded-sm border ${mode === "password" ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink bg-white"}`}
+            className={`flex-1 text-sm py-2 rounded-sm border transition-colors ${mode === "password" ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink bg-white hover:border-saffron2"}`}
           >
             Email & password
           </button>
           <button
             onClick={() => { setMode("otp"); setError(""); }}
-            className={`flex-1 text-sm py-2 rounded-sm border ${mode === "otp" ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink bg-white"}`}
+            className={`flex-1 text-sm py-2 rounded-sm border transition-colors ${mode === "otp" ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink bg-white hover:border-saffron2"}`}
           >
             Phone OTP
           </button>
@@ -99,16 +99,16 @@ export default function LoginPage() {
             <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Email</label>
             <input
               type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
+              className="field-input mb-4"
             />
             <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Password</label>
             <input
               type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full mb-6 px-3 py-2 border border-line rounded-sm text-sm"
+              className="field-input mb-6"
             />
             <button
               type="submit" disabled={submitting}
-              className="w-full bg-charcoal text-paper py-2.5 rounded-sm text-sm font-medium disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {submitting ? "Signing in…" : "Sign in"}
             </button>
@@ -125,7 +125,7 @@ export default function LoginPage() {
             <input
               required value={phone} onChange={(e) => setPhone(e.target.value)}
               disabled={otpSent} type="tel" placeholder="9876543210"
-              className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm disabled:bg-line/30"
+              className="field-input mb-4"
             />
 
             {otpSent && (
@@ -136,7 +136,7 @@ export default function LoginPage() {
                 <input
                   required value={code} onChange={(e) => setCode(e.target.value)}
                   maxLength={6} placeholder="123456"
-                  className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm font-mono tracking-widest"
+                  className="field-input mb-4 font-mono tracking-widest"
                 />
                 <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">
                   Your name (first time only)
@@ -144,7 +144,7 @@ export default function LoginPage() {
                 <input
                   value={name} onChange={(e) => setName(e.target.value)}
                   placeholder="Jane Doe"
-                  className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
+                  className="field-input mb-4"
                 />
                 {devCode && (
                   <p className="text-xs text-saffron2 mb-4 font-mono">
@@ -156,7 +156,7 @@ export default function LoginPage() {
 
             <button
               type="submit" disabled={submitting}
-              className="w-full bg-charcoal text-paper py-2.5 rounded-sm text-sm font-medium disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {submitting ? "Please wait…" : otpSent ? "Verify & sign in" : "Send code"}
             </button>

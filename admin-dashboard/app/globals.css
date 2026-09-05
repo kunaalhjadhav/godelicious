@@ -5,6 +5,7 @@
 body {
   background: #f7f5f1;
   color: #2a2822;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Kitchen-ticket status pill — the signature element of this dashboard.
@@ -21,6 +22,92 @@ body {
   text-transform: uppercase;
   border-left: 3px solid currentColor;
   background: rgba(0, 0, 0, 0.03);
+}
+
+/* ---- Shared component classes — same system as customer-web, so both
+   apps feel like one product. Use these instead of re-typing Tailwind
+   chains on new forms/buttons/cards. ---- */
+
+.field-label {
+  display: block;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(42, 40, 34, 0.55);
+  margin-bottom: 0.25rem;
+}
+
+.field-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #e4dfd3;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.field-input:focus {
+  border-color: #e8a33d;
+  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.15);
+  outline: none;
+}
+.field-input:disabled {
+  background: #e4dfd3;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background: #1c1b19;
+  color: #f7f5f1;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 0.55rem 1.1rem;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover:not(:disabled) { background: #26241f; }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-accent {
+  background: #e8a33d;
+  color: #1c1b19;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.btn-accent:hover:not(:disabled) { background: #c97f1f; }
+.btn-accent:active:not(:disabled) { transform: scale(0.98); }
+
+.card-surface {
+  background: #fff;
+  border: 1px solid #e4dfd3;
+  border-radius: 6px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-surface--interactive:hover {
+  box-shadow: 0 8px 24px -10px rgba(28, 27, 25, 0.16);
+  border-color: #c97f1f;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e4dfd3 25%, #efece3 37%, #e4dfd3 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: 4px;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.fade-in {
+  animation: fade-in 0.3s ease both;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 ::selection {

@@ -146,4 +146,41 @@ export const api = {
 
   // COD confirmation
   confirmCod: (orderId) => request(`/api/orders/${orderId}/confirm-cod`, { method: "PATCH" }),
+
+  // Order types (the 3 home-page package categories)
+  listAllOrderTypes: () => request("/api/order-types/all"),
+  createOrderType: (payload) => request("/api/order-types", { method: "POST", body: payload }),
+  updateOrderType: (id, payload) => request(`/api/order-types/${id}`, { method: "PATCH", body: payload }),
+  deleteOrderType: (id) => request(`/api/order-types/${id}`, { method: "DELETE" }),
+
+  // Add-ons
+  listAllAddons: () => request("/api/addons/all"),
+  createAddon: (payload) => request("/api/addons", { method: "POST", body: payload }),
+  updateAddon: (id, payload) => request(`/api/addons/${id}`, { method: "PATCH", body: payload }),
+  deleteAddon: (id) => request(`/api/addons/${id}`, { method: "DELETE" }),
+
+  // Brand partner self-service portal
+  registerBrandPartner: (payload) => request("/api/brand-partners/register", { method: "POST", body: payload }),
+  myBrandDashboard: () => request("/api/brand-partners/me/dashboard"),
+  myBrandOrders: () => request("/api/brand-partners/me/orders"),
+  myBrandMenu: () => request("/api/brand-partners/me/menu"),
+  createMyBrandMenuItem: (payload) => request("/api/brand-partners/me/menu", { method: "POST", body: payload }),
+  updateMyBrandMenuItem: (id, payload) => request(`/api/brand-partners/me/menu/${id}`, { method: "PUT", body: payload }),
+  deleteMyBrandMenuItem: (id) => request(`/api/brand-partners/me/menu/${id}`, { method: "DELETE" }),
+  myBrandLocations: () => request("/api/brand-partners/me/locations"),
+  createMyBrandLocation: (payload) => request("/api/brand-partners/me/locations", { method: "POST", body: payload }),
+  deleteMyBrandLocation: (id) => request(`/api/brand-partners/me/locations/${id}`, { method: "DELETE" }),
+  myBrandOffers: () => request("/api/brand-partners/me/offers"),
+  createMyBrandOffer: (payload) => request("/api/brand-partners/me/offers", { method: "POST", body: payload }),
+  myBrandEarnings: (from, to) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return request(`/api/brand-partners/me/earnings${params.toString() ? `?${params}` : ""}`);
+  },
+
+  // Offers (admin review)
+  listAllOffers: (status) => request(`/api/offers/all${status ? `?status=${status}` : ""}`),
+  reviewOffer: (id, status, adminNote) =>
+    request(`/api/offers/${id}`, { method: "PATCH", body: { status, adminNote } }),
 };

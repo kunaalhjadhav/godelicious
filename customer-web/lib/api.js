@@ -84,4 +84,12 @@ export const api = {
   // Reviews
   createReview: (orderId, rating, comment) =>
     request("/api/reviews", { method: "POST", body: { orderId, rating, comment } }),
+
+  // Order types (the 3 home-page package cards) and add-ons for booking
+  listOrderTypes: () => request("/api/order-types"),
+  listAddons: () => request("/api/addons"),
+
+  // Brand partner browsing
+  listBrandsPublic: () => request("/api/brands/public"),
+  listMenuByBrand: (brandId) => request(`/api/menu?available=true&brandId=${brandId}`),
 };

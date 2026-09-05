@@ -64,7 +64,7 @@ export default function CartPage() {
 
             <Link
               href="/checkout"
-              className="block text-center bg-charcoal text-paper py-3 rounded-sm font-medium hover:bg-charcoal2"
+              className="btn-primary block text-center py-3"
             >
               Proceed to checkout
             </Link>

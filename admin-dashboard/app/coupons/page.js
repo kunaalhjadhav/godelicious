@@ -53,7 +53,7 @@ export default function CouponsPage() {
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
 
       <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 bg-white border border-line rounded-sm">
+        <div className="col-span-2 card-surface">
           <table className="w-full text-sm">
             <thead className="text-left text-xs font-mono uppercase text-ink/50 border-b border-line">
               <tr>
@@ -94,7 +94,7 @@ export default function CouponsPage() {
           </table>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white border border-line rounded-sm p-5 h-fit">
+        <form onSubmit={handleSubmit} className="card-surface p-5 h-fit">
           <h2 className="font-display text-lg mb-3">New coupon</h2>
           <input
             placeholder="CODE (e.g. WELCOME10)" required value={form.code}
@@ -131,7 +131,7 @@ export default function CouponsPage() {
             onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
             className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
           />
-          <button type="submit" className="w-full bg-charcoal text-paper text-sm px-4 py-2 rounded-sm">
+          <button type="submit" className="btn-primary text-sm w-full">
             Create coupon
           </button>
         </form>

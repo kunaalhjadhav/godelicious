@@ -89,6 +89,19 @@ export default function OrderDetailPage() {
           </span>
         </div>
 
+        {order.orderType && (
+          <div className="mb-6">
+            <span className="ticket-pill text-saffron2 mb-2 inline-flex">{order.orderType.name}</span>
+            {order.eventDate && (
+              <p className="text-sm text-ink/60 mt-1">
+                {new Date(order.eventDate).toLocaleDateString()}
+                {order.eventTime ? ` at ${order.eventTime}` : ""}
+                {order.guestCount ? ` · ${order.guestCount} guests` : ""}
+              </p>
+            )}
+          </div>
+        )}
+
         {isCancelled ? (
           <p className="text-chili font-semibold mb-8">This order was cancelled.</p>
         ) : (
@@ -120,6 +133,24 @@ export default function OrderDetailPage() {
               <span>₹{(item.price * item.quantity).toFixed(0)}</span>
             </div>
           ))}
+          {order.needsStaff && (
+            <div className="flex justify-between text-sm py-1">
+              <span>{order.staffCount} staff</span>
+              <span>₹{order.staffCost.toFixed(0)}</span>
+            </div>
+          )}
+          {order.addons?.map((oa) => (
+            <div key={oa.id} className="flex justify-between text-sm py-1">
+              <span>{oa.quantity}× {oa.addon.name}</span>
+              <span>₹{(oa.price * oa.quantity).toFixed(0)}</span>
+            </div>
+          ))}
+          {order.discountAmount > 0 && (
+            <div className="flex justify-between text-sm py-1 text-basil">
+              <span>Discount</span>
+              <span>−₹{order.discountAmount.toFixed(0)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold pt-3 mt-2 border-t border-line">
             <span>Total</span>
             <span>₹{order.totalAmount.toFixed(0)}</span>

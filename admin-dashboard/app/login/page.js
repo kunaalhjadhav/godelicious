@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-charcoal px-4">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm fade-in">
         <div className="text-center mb-8">
           <img src="/logo.svg" alt="" className="w-14 h-14 rounded-xl mx-auto mb-3" />
           <div className="font-display text-3xl text-paper tracking-tight">{APP_NAME}</div>
@@ -52,7 +52,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full mb-4 px-3 py-2 border border-line bg-white rounded-sm text-sm focus-visible:outline-saffron"
+            className="field-input mb-4"
           />
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">
@@ -63,13 +63,13 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full mb-6 px-3 py-2 border border-line bg-white rounded-sm text-sm focus-visible:outline-saffron"
+            className="field-input mb-6"
           />
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-charcoal text-paper py-2.5 rounded-sm text-sm font-medium hover:bg-charcoal2 disabled:opacity-50"
+            className="btn-primary w-full"
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>

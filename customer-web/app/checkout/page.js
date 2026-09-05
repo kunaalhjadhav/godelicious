@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
+import { MapPin, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { useCart } from "@/lib/useCart";
@@ -168,19 +169,25 @@ export default function CheckoutPage() {
           <textarea
             required value={address} onChange={(e) => setAddress(e.target.value)} rows={3}
             placeholder="Flat / street / area / city"
-            className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+            className="field-input mb-2"
           />
           <button
             type="button" onClick={useMyLocation} disabled={locating}
-            className="text-xs text-saffron2 hover:underline mb-3 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-xs text-saffron2 hover:underline mb-3 disabled:opacity-50"
           >
-            {locating ? "Getting location…" : coords ? "✓ Location captured" : "📍 Use my current location"}
+            {locating ? (
+              "Getting location…"
+            ) : coords ? (
+              <><CheckCircle2 size={13} /> Location captured</>
+            ) : (
+              <><MapPin size={13} /> Use my current location</>
+            )}
           </button>
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Contact phone</label>
           <input
             required value={phone} onChange={(e) => setPhone(e.target.value)}
-            className="w-full mb-3 px-3 py-2 border border-line rounded-sm text-sm"
+            className="field-input mb-3"
           />
 
           <div className="grid grid-cols-2 gap-3 mb-3">
@@ -190,7 +197,7 @@ export default function CheckoutPage() {
               </label>
               <input
                 type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
-                className="w-full px-3 py-2 border border-line rounded-sm text-sm"
+                className="field-input"
               />
             </div>
             <div>
@@ -200,7 +207,7 @@ export default function CheckoutPage() {
               <input
                 type="number" value={guestCount} onChange={(e) => setGuestCount(e.target.value)}
                 placeholder="e.g. 20"
-                className="w-full px-3 py-2 border border-line rounded-sm text-sm"
+                className="field-input"
               />
             </div>
           </div>
@@ -208,7 +215,7 @@ export default function CheckoutPage() {
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Notes (optional)</label>
           <input
             value={notes} onChange={(e) => setNotes(e.target.value)}
-            className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
+            className="field-input mb-4"
           />
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Coupon code</label>
@@ -216,7 +223,7 @@ export default function CheckoutPage() {
             <input
               value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponStatus(null); }}
               placeholder="e.g. WELCOME10"
-              className="flex-1 px-3 py-2 border border-line rounded-sm text-sm font-mono"
+              className="field-input flex-1 font-mono"
             />
             <button
               type="button" onClick={applyCoupon} disabled={checkingCoupon || !couponCode.trim()}
@@ -277,7 +284,7 @@ export default function CheckoutPage() {
 
           <button
             type="submit" disabled={submitting || belowMinimum}
-            className="w-full mt-5 bg-charcoal text-paper py-3 rounded-sm font-medium disabled:opacity-50"
+            className="btn-primary w-full mt-5 py-3"
           >
             {submitting ? "Processing…" : paymentMethod === "COD" ? "Place order (Cash on delivery)" : "Pay & place order"}
           </button>

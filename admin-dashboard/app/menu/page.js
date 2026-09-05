@@ -132,7 +132,7 @@ export default function MenuPage() {
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
 
       <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 bg-white border border-line rounded-sm">
+        <div className="col-span-2 card-surface">
           <table className="w-full text-sm">
             <thead className="text-left text-xs font-mono uppercase text-ink/50 border-b border-line">
               <tr>
@@ -182,7 +182,7 @@ export default function MenuPage() {
         </div>
 
         <div className="space-y-6">
-          <form onSubmit={handleSubmit} className="bg-white border border-line rounded-sm p-5">
+          <form onSubmit={handleSubmit} className="card-surface p-5">
             <h2 className="font-display text-lg mb-3">{editingId ? "Edit item" : "New item"}</h2>
             <input
               placeholder="Name" required value={form.name}
@@ -244,7 +244,7 @@ export default function MenuPage() {
               Vegetarian
             </label>
             <div className="flex gap-2">
-              <button type="submit" className="bg-charcoal text-paper text-sm px-4 py-2 rounded-sm flex-1">
+              <button type="submit" className="btn-primary text-sm flex-1">
                 {editingId ? "Save changes" : "Add item"}
               </button>
               {editingId && (
@@ -259,7 +259,7 @@ export default function MenuPage() {
             </div>
           </form>
 
-          <form onSubmit={addCategory} className="bg-white border border-line rounded-sm p-5">
+          <form onSubmit={addCategory} className="card-surface p-5">
             <h2 className="font-display text-lg mb-3">New category</h2>
             <div className="flex gap-2">
               <input
@@ -271,7 +271,7 @@ export default function MenuPage() {
             </div>
           </form>
 
-          <div className="bg-white border border-line rounded-sm p-5">
+          <div className="card-surface p-5">
             <h2 className="font-display text-lg mb-2">Bulk upload menu (CSV)</h2>
             <p className="text-xs text-ink/50 mb-3">
               Columns: <code className="font-mono">name, description, price, categoryName, stockQty, isVeg</code>.

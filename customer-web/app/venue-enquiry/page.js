@@ -75,40 +75,40 @@ export default function VenueEnquiryPage() {
         <form onSubmit={handleSubmit} className="bg-white border border-line rounded-sm p-6 space-y-3">
           <div>
             <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Venue name</label>
-            <input required value={form.venueName} onChange={(e) => set("venueName", e.target.value)} placeholder="e.g. Grand Palace Banquet" className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+            <input required value={form.venueName} onChange={(e) => set("venueName", e.target.value)} placeholder="e.g. Grand Palace Banquet" className="field-input" />
           </div>
           <div>
             <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Location</label>
-            <input required value={form.location} onChange={(e) => set("location", e.target.value)} placeholder="Area, city" className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+            <input required value={form.location} onChange={(e) => set("location", e.target.value)} placeholder="Area, city" className="field-input" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Event date</label>
-              <input required type="date" value={form.eventDate} onChange={(e) => set("eventDate", e.target.value)} className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+              <input required type="date" value={form.eventDate} onChange={(e) => set("eventDate", e.target.value)} className="field-input" />
             </div>
             <div>
               <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Guest count</label>
-              <input required type="number" value={form.guestCount} onChange={(e) => set("guestCount", e.target.value)} placeholder="150" className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+              <input required type="number" value={form.guestCount} onChange={(e) => set("guestCount", e.target.value)} placeholder="150" className="field-input" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Budget (optional)</label>
-              <input type="number" value={form.budget} onChange={(e) => set("budget", e.target.value)} placeholder="₹" className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+              <input type="number" value={form.budget} onChange={(e) => set("budget", e.target.value)} placeholder="₹" className="field-input" />
             </div>
             <div>
               <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Contact phone</label>
-              <input required value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+              <input required value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} className="field-input" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Notes (optional)</label>
-            <textarea rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+            <textarea rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} className="field-input" />
           </div>
 
           <button
             type="submit" disabled={submitting}
-            className="w-full bg-charcoal text-paper py-3 rounded-sm font-medium disabled:opacity-50"
+            className="btn-primary w-full py-3"
           >
             {submitting ? "Submitting…" : "Submit enquiry"}
           </button>

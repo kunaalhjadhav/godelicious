@@ -21,12 +21,19 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     const data = await api.login(email, password);
-    if (!["ADMIN", "STAFF"].includes(data.user.role)) {
+    if (!["ADMIN", "STAFF", "BRAND_PARTNER"].includes(data.user.role)) {
       throw new Error("This account does not have dashboard access.");
     }
     setToken(data.token);
     setUser(data.user);
-    router.push("/dashboard");
+    router.push(data.user.role === "BRAND_PARTNER" ? "/partner/dashboard" : "/dashboard");
+  }
+
+  async function registerBrandPartner(payload) {
+    const data = await api.registerBrandPartner(payload);
+    setToken(data.token);
+    setUser(data.user);
+    router.push("/partner/dashboard");
   }
 
   function logout() {
@@ -36,7 +43,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, registerBrandPartner }}>
       {children}
     </AuthContext.Provider>
   );

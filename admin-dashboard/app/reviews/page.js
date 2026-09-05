@@ -30,7 +30,7 @@ export default function ReviewsPage() {
 
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
 
-      <div className="bg-white border border-line rounded-sm p-5 mb-6 inline-block">
+      <div className="card-surface p-5 mb-6 inline-block">
         <div className="text-xs font-mono uppercase text-ink/50 mb-1">Average rating</div>
         <div className="font-display text-3xl text-ink">{avg} <span className="text-base text-ink/40">/ 5</span></div>
         <div className="text-xs text-ink/40">{reviews.length} review{reviews.length === 1 ? "" : "s"}</div>
@@ -38,7 +38,7 @@ export default function ReviewsPage() {
 
       <div className="space-y-3">
         {reviews.map((r) => (
-          <div key={r.id} className="bg-white border border-line rounded-sm p-4">
+          <div key={r.id} className="card-surface p-4">
             <div className="flex justify-between items-start mb-1">
               <div>
                 <Stars rating={r.rating} />

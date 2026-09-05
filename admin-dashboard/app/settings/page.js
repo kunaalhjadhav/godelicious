@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 export default function SettingsPage() {
   const [minOrderAmount, setMinOrderAmount] = useState("");
   const [codEnabled, setCodEnabled] = useState(true);
+  const [staffPricePerPerson, setStaffPricePerPerson] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -15,6 +16,7 @@ export default function SettingsPage() {
     api.getSettings().then((d) => {
       setMinOrderAmount(String(d.settings.minOrderAmount));
       setCodEnabled(d.settings.codEnabled);
+      setStaffPricePerPerson(String(d.settings.staffPricePerPerson ?? 0));
     }).catch((e) => setError(e.message));
   }, []);
 
@@ -24,7 +26,7 @@ export default function SettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled });
+      await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson) });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -54,6 +56,15 @@ export default function SettingsPage() {
           Allow Cash on Delivery
         </label>
         <p className="text-xs text-ink/40 mb-5">When off, customers can only pay online at checkout.</p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Staff price per person (₹)</label>
+        <input
+          type="number" value={staffPricePerPerson} onChange={(e) => setStaffPricePerPerson(e.target.value)}
+          className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-5 -mt-3">
+          Charged per staff member when a customer requests staffing on a Catering/Delivery booking.
+        </p>
 
         <button
           type="submit" disabled={saving}

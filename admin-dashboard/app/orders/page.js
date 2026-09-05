@@ -98,7 +98,7 @@ export default function OrdersPage() {
 
       <div className="space-y-3">
         {orders.map((order) => (
-          <div key={order.id} className="bg-white border border-line rounded-sm p-4 flex items-start gap-4">
+          <div key={order.id} className="card-surface p-4 flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
                 <span className={`ticket-pill ${STATUS_COLORS[order.status]}`}>
@@ -111,10 +111,29 @@ export default function OrdersPage() {
               </div>
               <div className="font-medium text-ink">{order.user.name} · {order.user.phone}</div>
               <div className="text-sm text-ink/60">{order.deliveryAddress}</div>
+              {order.orderType && (
+                <div className="mt-1 text-xs">
+                  <span className="bg-charcoal text-paper px-2 py-0.5 rounded-sm font-mono">{order.orderType.name}</span>
+                  {order.eventDate && (
+                    <span className="text-ink/50 ml-2">
+                      {new Date(order.eventDate).toLocaleDateString()}{order.eventTime ? ` · ${order.eventTime}` : ""}
+                      {order.guestCount ? ` · ${order.guestCount} guests` : ""}
+                    </span>
+                  )}
+                </div>
+              )}
               <ul className="text-sm text-ink/70 mt-2">
                 {order.items.map((item) => (
                   <li key={item.id}>
                     {item.quantity}× {item.menuItem.name} — ₹{(item.price * item.quantity).toFixed(0)}
+                  </li>
+                ))}
+                {order.needsStaff && (
+                  <li>{order.staffCount} staff requested — ₹{order.staffCost.toFixed(0)}</li>
+                )}
+                {order.addons?.map((oa) => (
+                  <li key={oa.id}>
+                    {oa.quantity}× {oa.addon.name} (add-on) — ₹{(oa.price * oa.quantity).toFixed(0)}
                   </li>
                 ))}
               </ul>
@@ -136,7 +155,7 @@ export default function OrdersPage() {
                 <button
                   onClick={() => advance(order)}
                   disabled={updating === order.id}
-                  className="bg-charcoal text-paper text-xs px-3 py-1.5 rounded-sm hover:bg-charcoal2 disabled:opacity-50"
+                  className="btn-primary text-xs disabled:opacity-50"
                 >
                   Mark {NEXT_STATUS[order.status].replace(/_/g, " ")}
                 </button>

@@ -35,6 +35,11 @@ export default function BrandsPage() {
     load();
   }
 
+  async function approve(brand) {
+    await api.updateBrand(brand.id, { isApproved: true });
+    load();
+  }
+
   return (
     <Shell>
       <h1 className="font-display text-2xl text-ink mb-1">Brand Partners</h1>
@@ -53,17 +58,34 @@ export default function BrandsPage() {
             >
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-display text-lg text-ink">{b.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-lg text-ink">{b.name}</h3>
+                    {!b.isApproved && (
+                      <span className="text-[10px] font-mono uppercase bg-saffron/20 text-saffron2 px-1.5 py-0.5 rounded-sm">
+                        Pending approval
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-ink/50">
                     Commission {b.commissionPercent}% · {b.contactEmail || "no contact"}
                   </p>
                 </div>
-                <button
-                  onClick={(e) => { e.preventDefault(); toggleActive(b); }}
-                  className={`text-xs px-2 py-1 rounded-sm ${b.isActive ? "bg-basil/10 text-basil" : "bg-chili/10 text-chili"}`}
-                >
-                  {b.isActive ? "Active" : "Disabled"}
-                </button>
+                <div className="flex items-center gap-2">
+                  {!b.isApproved && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); approve(b); }}
+                      className="text-xs px-2 py-1 rounded-sm bg-charcoal text-paper"
+                    >
+                      Approve
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => { e.preventDefault(); toggleActive(b); }}
+                    className={`text-xs px-2 py-1 rounded-sm ${b.isActive ? "bg-basil/10 text-basil" : "bg-chili/10 text-chili"}`}
+                  >
+                    {b.isActive ? "Active" : "Disabled"}
+                  </button>
+                </div>
               </div>
             </Link>
           ))}

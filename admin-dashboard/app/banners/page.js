@@ -84,7 +84,7 @@ export default function BannersPage() {
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-3">
           {banners.map((b) => (
-            <div key={b.id} className="bg-white border border-line rounded-sm p-3 flex items-center gap-3">
+            <div key={b.id} className="card-surface p-3 flex items-center gap-3">
               {b.mediaType === "IMAGE" ? (
                 <img src={resolveUrl(b.mediaUrl)} alt="" className="w-24 h-14 object-cover rounded-sm" />
               ) : (
@@ -108,7 +108,7 @@ export default function BannersPage() {
           {banners.length === 0 && <p className="text-sm text-ink/40">No banners yet.</p>}
         </div>
 
-        <form onSubmit={handleCreate} className="bg-white border border-line rounded-sm p-5 h-fit">
+        <form onSubmit={handleCreate} className="card-surface p-5 h-fit">
           <h2 className="font-display text-lg mb-3">New banner</h2>
 
           <select
@@ -148,7 +148,7 @@ export default function BannersPage() {
             className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
           />
 
-          <button type="submit" className="w-full bg-charcoal text-paper text-sm px-4 py-2 rounded-sm">
+          <button type="submit" className="btn-primary text-sm w-full">
             Add banner
           </button>
         </form>
