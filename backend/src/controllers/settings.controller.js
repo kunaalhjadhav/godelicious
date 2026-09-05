@@ -12,17 +12,19 @@ async function getSettings(req, res) {
 
 // PATCH /api/settings (ADMIN)
 async function updateSettings(req, res) {
-  const { minOrderAmount, codEnabled } = req.body;
+  const { minOrderAmount, codEnabled, staffPricePerPerson } = req.body;
   const settings = await prisma.appSettings.upsert({
     where: { id: "singleton" },
     update: {
       ...(minOrderAmount !== undefined && { minOrderAmount: Number(minOrderAmount) }),
       ...(codEnabled !== undefined && { codEnabled: Boolean(codEnabled) }),
+      ...(staffPricePerPerson !== undefined && { staffPricePerPerson: Number(staffPricePerPerson) }),
     },
     create: {
       id: "singleton",
       minOrderAmount: minOrderAmount !== undefined ? Number(minOrderAmount) : 0,
       codEnabled: codEnabled !== undefined ? Boolean(codEnabled) : true,
+      staffPricePerPerson: staffPricePerPerson !== undefined ? Number(staffPricePerPerson) : 0,
     },
   });
   res.json({ settings });

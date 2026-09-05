@@ -10,17 +10,23 @@ const VALID_STATUSES = [
 ];
 
 // POST /api/orders (CUSTOMER)
-// body: { items: [{ menuItemId, quantity, selectedOptions? }], deliveryAddress, contactPhone,
-//         notes, couponCode?, eventDate?, guestCount?, latitude?, longitude? }
+// body: { items?: [{ menuItemId, quantity, selectedOptions? }], deliveryAddress, contactPhone,
+//         notes, couponCode?, eventDate?, eventTime?, guestCount?, latitude?, longitude?,
+//         orderTypeId?, needsStaff?, staffCount?, addons?: [{ addonId, quantity }] }
+// `items` is optional: a booking (Meal Box / Delivery Box / Catering Order) can be placed
+// with just an orderType + staff/addons and no à la carte menu items.
 async function createOrder(req, res) {
   const {
     items, deliveryAddress, contactPhone, notes,
-    couponCode, eventDate, guestCount, latitude, longitude,
-    paymentMethod,
+    couponCode, eventDate, eventTime, guestCount, latitude, longitude,
+    paymentMethod, orderTypeId, needsStaff, staffCount, addons,
   } = req.body;
 
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: "items must be a non-empty array." });
+  const itemLines = Array.isArray(items) ? items : [];
+  const addonLines = Array.isArray(addons) ? addons : [];
+
+  if (itemLines.length === 0 && addonLines.length === 0 && !needsStaff && !orderTypeId) {
+    return res.status(400).json({ error: "An order needs at least a package, menu items, staff, or add-ons." });
   }
   if (!deliveryAddress || !contactPhone) {
     return res.status(400).json({ error: "deliveryAddress and contactPhone are required." });
@@ -40,7 +46,7 @@ async function createOrder(req, res) {
       let subtotal = 0;
       const orderItemsData = [];
 
-      for (const line of items) {
+      for (const line of itemLines) {
         const menuItem = await tx.menuItem.findUnique({ where: { id: line.menuItemId } });
         if (!menuItem) {
           throw new Error(`Menu item ${line.menuItemId} not found.`);
@@ -77,6 +83,36 @@ async function createOrder(req, res) {
           data: { menuItemId: menuItem.id, changeQty: -line.quantity, reason: "order" },
         });
       }
+
+      // Validate the order type, if given
+      let validOrderTypeId = null;
+      if (orderTypeId) {
+        const orderType = await tx.orderType.findUnique({ where: { id: orderTypeId } });
+        if (!orderType) throw new Error("Selected package not found.");
+        validOrderTypeId = orderType.id;
+      }
+
+      // Staff cost
+      const wantsStaff = Boolean(needsStaff);
+      const numStaff = wantsStaff ? Math.max(0, Number(staffCount) || 0) : 0;
+      if (wantsStaff && numStaff === 0) {
+        throw new Error("Please specify how many staff you need.");
+      }
+      const staffCost = numStaff * settings.staffPricePerPerson;
+      subtotal += staffCost;
+
+      // Add-ons — validate each and snapshot its price
+      const orderAddonsData = [];
+      let addonsCost = 0;
+      for (const line of addonLines) {
+        const addon = await tx.addon.findUnique({ where: { id: line.addonId } });
+        if (!addon) throw new Error(`Add-on ${line.addonId} not found.`);
+        if (!addon.isActive) throw new Error(`${addon.name} is no longer available.`);
+        const qty = Math.max(1, Number(line.quantity) || 1);
+        addonsCost += addon.price * qty;
+        orderAddonsData.push({ addonId: addon.id, quantity: qty, price: addon.price });
+      }
+      subtotal += addonsCost;
 
       // Apply coupon, if provided
       let discountAmount = 0;
@@ -117,13 +153,24 @@ async function createOrder(req, res) {
           contactPhone,
           notes,
           eventDate: eventDate ? new Date(eventDate) : null,
+          eventTime: eventTime || null,
           guestCount: guestCount ? Number(guestCount) : null,
           latitude: latitude !== undefined ? Number(latitude) : null,
           longitude: longitude !== undefined ? Number(longitude) : null,
           paymentMethod: method,
+          orderTypeId: validOrderTypeId,
+          needsStaff: wantsStaff,
+          staffCount: wantsStaff ? numStaff : null,
+          staffCost,
+          addonsCost,
           items: { create: orderItemsData },
+          addons: { create: orderAddonsData },
         },
-        include: { items: { include: { menuItem: true } } },
+        include: {
+          items: { include: { menuItem: true } },
+          addons: { include: { addon: true } },
+          orderType: true,
+        },
       });
     });
 
@@ -138,7 +185,11 @@ async function createOrder(req, res) {
 async function myOrders(req, res) {
   const orders = await prisma.order.findMany({
     where: { userId: req.user.id },
-    include: { items: { include: { menuItem: true } } },
+    include: {
+      items: { include: { menuItem: true } },
+      addons: { include: { addon: true } },
+      orderType: true,
+    },
     orderBy: { createdAt: "desc" },
   });
   res.json({ orders });
@@ -150,6 +201,8 @@ async function getOrder(req, res) {
     where: { id: req.params.id },
     include: {
       items: { include: { menuItem: true } },
+      addons: { include: { addon: true } },
+      orderType: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       review: true,
     },
@@ -172,6 +225,8 @@ async function listOrders(req, res) {
     where: status ? { status } : undefined,
     include: {
       items: { include: { menuItem: true } },
+      addons: { include: { addon: true } },
+      orderType: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
     },
     orderBy: { createdAt: "desc" },

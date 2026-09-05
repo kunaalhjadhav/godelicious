@@ -16,6 +16,7 @@ enum Role {
   ADMIN
   STAFF
   VENUE_PARTNER
+  BRAND_PARTNER
 }
 
 enum OrderStatus {
@@ -65,6 +66,12 @@ enum SettlementStatus {
   PAID
 }
 
+enum OfferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String   @id @default(uuid())
   name          String
@@ -81,6 +88,9 @@ model User {
   messages        Message[] @relation("CustomerMessages")
   notificationReads NotificationRead[]
   reviews         Review[]
+
+  brandId  String? // set only for role = BRAND_PARTNER; which brand this login manages
+  brand    Brand?  @relation(fields: [brandId], references: [id])
 }
 
 model Category {
@@ -144,9 +154,17 @@ model Order {
   latitude         Float?
   longitude        Float?
   eventDate        DateTime?
+  eventTime        String?       // free-text time slot, e.g. "18:30" — kept simple, no timezone math needed
   guestCount       Int?
   contactPhone     String
   notes            String?
+
+  orderTypeId      String?
+  orderType        OrderType?    @relation(fields: [orderTypeId], references: [id])
+  needsStaff       Boolean       @default(false)
+  staffCount       Int?
+  staffCost        Float         @default(0)
+  addonsCost       Float         @default(0)
 
   paymentMethod    PaymentMethod @default(ONLINE)
   paymentStatus    PaymentStatus @default(PENDING)
@@ -160,7 +178,46 @@ model Order {
   updatedAt        DateTime      @updatedAt
 
   items  OrderItem[]
+  addons OrderAddon[]
   review Review?
+}
+
+// The three top-level packages shown on the home page: Meal Box, Delivery
+// Box, Catering Order. Admin-managed so names/images/descriptions/order can
+// change without a code deploy.
+model OrderType {
+  id           String   @id @default(uuid())
+  name         String
+  imageUrl     String?
+  description  String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  orders Order[]
+}
+
+// Admin-managed add-ons a customer can attach to a booking (e.g. "Extra
+// dessert table", "Live counter"). Flat price each, quantity chosen at
+// booking time.
+model Addon {
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  orderAddons OrderAddon[]
+}
+
+model OrderAddon {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  addonId   String
+  addon     Addon   @relation(fields: [addonId], references: [id])
+  quantity  Int     @default(1)
+  price     Float   // snapshot of addon price at time of booking
 }
 
 model OrderItem {
@@ -285,6 +342,7 @@ model AppSettings {
   id              String   @id @default("singleton")
   minOrderAmount  Float    @default(0)
   codEnabled      Boolean  @default(true)
+  staffPricePerPerson  Float @default(0) // charged per staff member requested on a booking
   updatedAt       DateTime @updatedAt
 }
 
@@ -310,10 +368,43 @@ model Brand {
   contactPhone      String?
   commissionPercent Float    @default(15)
   isActive          Boolean  @default(true)
+  isApproved        Boolean  @default(false) // admin approves new self-registered brand partners before they go live
   createdAt         DateTime @default(now())
 
   menuItems    MenuItem[]
   settlements  BrandSettlement[]
+  locations    BrandLocation[]
+  offers       Offer[]
+  users        User[]
+}
+
+// A physical location/branch a brand partner operates from — shown to
+// customers browsing that brand, e.g. for pickup or "near you" filtering.
+model BrandLocation {
+  id         String   @id @default(uuid())
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name       String   // e.g. "Koramangala outlet"
+  address    String
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime @default(now())
+}
+
+// A promotional offer a brand partner proposes — must be approved by admin
+// before it's shown to customers. Kept simple (flat percent off their menu)
+// rather than a full coupon-code system, since these are marketing call-outs
+// rather than something a customer redeems with a code.
+model Offer {
+  id             String      @id @default(uuid())
+  brandId        String
+  brand          Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  discountPercent Float
+  status         OfferStatus @default(PENDING)
+  adminNote      String?
+  createdAt      DateTime    @default(now())
 }
 
 // A manually-created settlement period for a brand — admin generates one

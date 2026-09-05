@@ -9,7 +9,7 @@ async function listBrands(req, res) {
 // GET /api/brands/public (public) - active brands, for filtering the customer menu by brand
 async function listActiveBrands(req, res) {
   const brands = await prisma.brand.findMany({
-    where: { isActive: true },
+    where: { isActive: true, isApproved: true },
     select: { id: true, name: true, logoUrl: true },
     orderBy: { name: "asc" },
   });
@@ -25,6 +25,8 @@ async function createBrand(req, res) {
     data: {
       name, logoUrl, contactEmail, contactPhone,
       commissionPercent: commissionPercent !== undefined ? Number(commissionPercent) : 15,
+      isApproved: true, // admin created this directly, so it's trusted from the start —
+      // only self-registered brand partners (see brandPartners.controller.js) start unapproved
     },
   });
   res.status(201).json({ brand });
@@ -32,7 +34,7 @@ async function createBrand(req, res) {
 
 // PATCH /api/brands/:id (ADMIN)
 async function updateBrand(req, res) {
-  const { name, logoUrl, contactEmail, contactPhone, commissionPercent, isActive } = req.body;
+  const { name, logoUrl, contactEmail, contactPhone, commissionPercent, isActive, isApproved } = req.body;
   const brand = await prisma.brand.update({
     where: { id: req.params.id },
     data: {
@@ -42,6 +44,7 @@ async function updateBrand(req, res) {
       ...(contactPhone !== undefined && { contactPhone }),
       ...(commissionPercent !== undefined && { commissionPercent: Number(commissionPercent) }),
       ...(isActive !== undefined && { isActive: Boolean(isActive) }),
+      ...(isApproved !== undefined && { isApproved: Boolean(isApproved) }),
     },
   });
   res.json({ brand });

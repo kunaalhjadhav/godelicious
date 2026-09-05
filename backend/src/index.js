@@ -3,6 +3,8 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 const authRoutes = require("./routes/auth.routes");
 const usersRoutes = require("./routes/users.routes");
@@ -21,10 +23,23 @@ const reviewsRoutes = require("./routes/reviews.routes");
 const brandsRoutes = require("./routes/brands.routes");
 const paymentsRoutes = require("./routes/payments.routes");
 const reportsRoutes = require("./routes/reports.routes");
+const orderTypesRoutes = require("./routes/orderTypes.routes");
+const addonsRoutes = require("./routes/addons.routes");
+const brandPartnersRoutes = require("./routes/brandPartners.routes");
+const offersRoutes = require("./routes/offers.routes");
 
 const app = express();
 
-// CORS - restrict to the admin dashboard's and app's origins in production
+// Sets a handful of standard security-related HTTP headers (hides the
+// Express fingerprint, blocks MIME-sniffing, disables framing, etc).
+// crossOriginResourcePolicy is relaxed so admin/web can load uploaded
+// images/videos served from this same origin during local-disk fallback mode.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+// CORS - restrict to the admin dashboard's and app's origins in production.
+// Placed before the rate limiters below so even a 429 response still carries
+// CORS headers — otherwise the browser reports a confusing CORS error instead
+// of the actual rate-limit message.
 const allowedOrigins = (process.env.CORS_ORIGIN || "").split(",").map((s) => s.trim());
 app.use(
   cors({
@@ -37,6 +52,31 @@ app.use(
     },
   })
 );
+
+// General API rate limit — generous, just a backstop against abuse/scraping,
+// not meant to interfere with normal traffic.
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please try again in a few minutes." },
+  })
+);
+
+// Tighter limit specifically on auth endpoints — these are the ones brute-force
+// and credential-stuffing attacks actually target.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again in a few minutes." },
+});
+app.use("/api/auth", authLimiter);
+app.use("/api/brand-partners/register", authLimiter);
 
 app.use(express.json());
 app.use(morgan("dev"));
@@ -63,6 +103,10 @@ app.use("/api/reviews", reviewsRoutes);
 app.use("/api/brands", brandsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/order-types", orderTypesRoutes);
+app.use("/api/addons", addonsRoutes);
+app.use("/api/brand-partners", brandPartnersRoutes);
+app.use("/api/offers", offersRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));

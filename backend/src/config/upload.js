@@ -2,39 +2,52 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Local disk storage for the MVP — files land in backend/uploads/ and are served
-// statically at /uploads/<filename> (see index.js). This is fine for local dev and
-// small deployments, but Railway/Render's filesystem is EPHEMERAL: uploaded files
-// are wiped on every redeploy. For real production, swap this for a cloud storage
-// SDK (Cloudinary, S3, Supabase Storage) — only this file and the upload route need
-// to change; the rest of the app just consumes whatever URL comes back.
-const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const USE_CLOUDINARY = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET
+);
+
+if (!USE_CLOUDINARY) {
+  console.warn(
+    "[uploads] CLOUDINARY_* env vars not set — falling back to local disk storage. " +
+    "This is fine for local development, but files WILL BE LOST on every deploy to " +
+    "Railway/Render (ephemeral filesystem). Set Cloudinary credentials before going live — " +
+    "see PRODUCTION_READY_GUIDE.md section 1."
+  );
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique);
-  },
-});
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".webm"];
 
 function fileFilter(req, file, cb) {
-  const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".webm"];
   const ext = path.extname(file.originalname).toLowerCase();
-  if (!allowed.includes(ext)) {
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
     return cb(new Error("Only image (jpg, png, webp, gif) or video (mp4, mov, webm) files are allowed."));
   }
   cb(null, true);
 }
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — enough for a short banner video
-});
+const limits = { fileSize: 25 * 1024 * 1024 }; // 25MB — enough for a short banner video
 
-module.exports = { upload, UPLOAD_DIR };
+let upload;
+let UPLOAD_DIR = null;
+
+if (USE_CLOUDINARY) {
+  // Buffer the file in memory; uploads.routes.js streams req.file.buffer to
+  // Cloudinary and returns its permanent URL. Nothing touches local disk.
+  upload = multer({ storage: multer.memoryStorage(), fileFilter, limits });
+} else {
+  // Local dev fallback — identical to the original MVP behavior.
+  UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      cb(null, unique);
+    },
+  });
+  upload = multer({ storage, fileFilter, limits });
+}
+
+module.exports = { upload, UPLOAD_DIR, USE_CLOUDINARY };
