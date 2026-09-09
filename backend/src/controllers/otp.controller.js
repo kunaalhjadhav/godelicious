@@ -4,30 +4,62 @@ const { signToken } = require("../utils/jwt");
 
 const OTP_TTL_MINUTES = 10;
 
+const USE_TWILIO = Boolean(
+  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID
+);
+
+if (!USE_TWILIO) {
+  console.warn(
+    "[otp] TWILIO_* env vars not set — falling back to a dev-only OTP mode that returns the " +
+    "code directly in the API response instead of sending a real SMS. Fine for local testing, " +
+    "but no code is ever actually delivered to a phone. Set Twilio credentials before going live " +
+    "— see PRODUCTION_READY_GUIDE.md section 3."
+  );
+}
+
+function twilioClient() {
+  // Lazily required so the app doesn't crash on boot if the package or
+  // credentials aren't present yet — matches the Cloudinary/Razorpay pattern.
+  const twilio = require("twilio");
+  return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+}
+
+// Twilio Verify expects E.164 format (e.g. +919876543210). If the number
+// doesn't already start with "+", assume India (+91) as a sane default for
+// this project — adjust here if you operate in a different country.
+function toE164(phone) {
+  const digits = phone.replace(/\D/g, "");
+  if (phone.startsWith("+")) return phone;
+  return `+91${digits}`;
+}
+
 // POST /api/auth/otp/request
 // body: { phone }
-// Creates a 6-digit code valid for 10 minutes. In production, plug in an SMS
-// provider (MSG91, Twilio, etc.) where the comment below says so — for now
-// this returns the code directly in the response so the feature is fully
-// testable without one. NEVER ship that behavior to real users; gate it
-// behind NODE_ENV !== "production" at minimum, or remove once SMS is wired.
 async function requestOtp(req, res) {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ error: "phone is required." });
 
+  if (USE_TWILIO) {
+    try {
+      const client = twilioClient();
+      await client.verify.v2
+        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verifications.create({ to: toE164(phone), channel: "sms" });
+      return res.json({ success: true, message: "OTP sent." });
+    } catch (err) {
+      console.error("Twilio requestOtp error:", err.message);
+      return res.status(500).json({ error: "Could not send OTP. Please check the phone number and try again." });
+    }
+  }
+
+  // ---- Dev-only fallback (no Twilio configured) ----
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-
   await prisma.otpCode.create({ data: { phone, code, expiresAt } });
 
-  // ---- SMS PROVIDER INTEGRATION POINT ----
-  // Example with an SMS API (pseudo-code — swap in your provider's SDK/HTTP call):
-  //   await smsProvider.send({ to: phone, message: `Your Godelicious OTP is ${code}` });
-  // -----------------------------------------
-
-  const response = { success: true, message: "OTP sent." };
+  const response = { success: true, message: "OTP sent (dev mode — see devCode)." };
   if (process.env.NODE_ENV !== "production") {
-    response.devCode = code; // visible only outside production, for testing without SMS setup
+    response.devCode = code;
   }
   res.json(response);
 }
@@ -40,13 +72,28 @@ async function verifyOtp(req, res) {
   const { phone, code, name } = req.body;
   if (!phone || !code) return res.status(400).json({ error: "phone and code are required." });
 
-  const otp = await prisma.otpCode.findFirst({
-    where: { phone, code, consumed: false, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!otp) return res.status(400).json({ error: "Invalid or expired code." });
-
-  await prisma.otpCode.update({ where: { id: otp.id }, data: { consumed: true } });
+  if (USE_TWILIO) {
+    try {
+      const client = twilioClient();
+      const check = await client.verify.v2
+        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verificationChecks.create({ to: toE164(phone), code });
+      if (check.status !== "approved") {
+        return res.status(400).json({ error: "Invalid or expired code." });
+      }
+    } catch (err) {
+      console.error("Twilio verifyOtp error:", err.message);
+      return res.status(400).json({ error: "Invalid or expired code." });
+    }
+  } else {
+    // Dev-only fallback path
+    const otp = await prisma.otpCode.findFirst({
+      where: { phone, code, consumed: false, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!otp) return res.status(400).json({ error: "Invalid or expired code." });
+    await prisma.otpCode.update({ where: { id: otp.id }, data: { consumed: true } });
+  }
 
   let user = await prisma.user.findFirst({ where: { phone } });
   if (!user) {
@@ -65,7 +112,7 @@ async function verifyOtp(req, res) {
   }
 
   const token = signToken(user);
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, brandId: user.brandId } });
 }
 
 module.exports = { requestOtp, verifyOtp };

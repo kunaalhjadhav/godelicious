@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { sendPushToUser } = require("../services/push.service");
 
 const VALID_STATUSES = [
   "PENDING",
@@ -46,6 +47,8 @@ async function createOrder(req, res) {
       let subtotal = 0;
       const orderItemsData = [];
 
+      const MIN_WEIGHT_ITEM_VALUE = 1000; // ₹1000 minimum order value for any item sold by weight/kg
+
       for (const line of itemLines) {
         const menuItem = await tx.menuItem.findUnique({ where: { id: line.menuItemId } });
         if (!menuItem) {
@@ -55,11 +58,14 @@ async function createOrder(req, res) {
           throw new Error(`${menuItem.name} is currently unavailable.`);
         }
         if (menuItem.stockQty < line.quantity) {
-          throw new Error(`Not enough stock for ${menuItem.name}. Available: ${menuItem.stockQty}.`);
+          const unit = menuItem.soldByWeight ? "g" : "";
+          throw new Error(`Not enough stock for ${menuItem.name}. Available: ${menuItem.stockQty}${unit}.`);
         }
 
-        // Combo items: add up any priceDelta for the customer's selected options
-        let unitPrice = menuItem.price;
+        // Weight-sold items are priced per kg — quantity is grams, so the
+        // effective unit price (matching how quantity is expressed) is per gram.
+        // Combo items: add up any priceDelta for the customer's selected options.
+        let unitPrice = menuItem.soldByWeight ? menuItem.price / 1000 : menuItem.price;
         if (line.selectedOptions?.length) {
           for (const sel of line.selectedOptions) {
             const option = await tx.comboOption.findUnique({ where: { id: sel.optionId } });
@@ -67,7 +73,12 @@ async function createOrder(req, res) {
           }
         }
 
-        subtotal += unitPrice * line.quantity;
+        const lineValue = unitPrice * line.quantity;
+        if (menuItem.soldByWeight && lineValue < MIN_WEIGHT_ITEM_VALUE) {
+          throw new Error(`Minimum order value for ${menuItem.name} is ₹${MIN_WEIGHT_ITEM_VALUE} — please add more quantity.`);
+        }
+
+        subtotal += lineValue;
         orderItemsData.push({
           menuItemId: menuItem.id,
           quantity: line.quantity,
@@ -271,6 +282,12 @@ async function updateOrderStatus(req, res) {
         include: { items: { include: { menuItem: true } } },
       });
     });
+
+    sendPushToUser(order.userId, {
+      title: "Order update",
+      body: `Your order is now ${status.replace(/_/g, " ").toLowerCase()}.`,
+      data: { type: "order_status", orderId: order.id },
+    }).catch((err) => console.error("Push send failed (order status):", err.message));
 
     res.json({ order });
   } catch (err) {

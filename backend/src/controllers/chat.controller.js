@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { sendPushToUser } = require("../services/push.service");
 
 // GET /api/chat/my (CUSTOMER) - the logged-in customer's own thread
 async function myMessages(req, res) {
@@ -22,6 +23,20 @@ async function sendMyMessage(req, res) {
   const message = await prisma.message.create({
     data: { customerId: req.user.id, senderId: req.user.id, senderRole: "CUSTOMER", body: body.trim() },
   });
+
+  // Notify every admin/staff device — there's no single "admin inbox" user,
+  // so this fans out to whichever staff accounts have push registered.
+  prisma.user.findUnique({ where: { id: req.user.id }, select: { name: true } })
+    .then((sender) =>
+      prisma.user.findMany({ where: { role: { in: ["ADMIN", "STAFF"] } }, select: { id: true } })
+        .then((admins) => Promise.allSettled(admins.map((a) => sendPushToUser(a.id, {
+          title: `New message from ${sender?.name || "a customer"}`,
+          body: body.trim().slice(0, 100),
+          data: { type: "chat_message", customerId: req.user.id },
+        }))))
+    )
+    .catch((err) => console.error("Push send failed (customer chat):", err.message));
+
   res.status(201).json({ message });
 }
 
@@ -82,6 +97,13 @@ async function replyToThread(req, res) {
       body: body.trim(),
     },
   });
+
+  sendPushToUser(req.params.customerId, {
+    title: "New message from support",
+    body: body.trim().slice(0, 100),
+    data: { type: "chat_message" },
+  }).catch((err) => console.error("Push send failed (chat reply):", err.message));
+
   res.status(201).json({ message });
 }
 

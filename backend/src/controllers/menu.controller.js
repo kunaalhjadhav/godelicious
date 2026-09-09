@@ -16,6 +16,19 @@ async function createCategory(req, res) {
   res.status(201).json({ category });
 }
 
+// PATCH /api/menu/categories/:id (ADMIN)
+async function updateCategory(req, res) {
+  const { name, sortOrder } = req.body;
+  const category = await prisma.category.update({
+    where: { id: req.params.id },
+    data: {
+      ...(name !== undefined && { name }),
+      ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
+    },
+  });
+  res.json({ category });
+}
+
 // DELETE /api/categories/:id (ADMIN)
 async function deleteCategory(req, res) {
   await prisma.category.delete({ where: { id: req.params.id } });
@@ -53,7 +66,7 @@ async function getMenuItem(req, res) {
 // POST /api/menu (ADMIN)
 async function createMenuItem(req, res) {
   try {
-    const { name, description, price, imageUrl, isVeg, categoryId, stockQty, isCombo, brandId } = req.body;
+    const { name, description, price, imageUrl, isVeg, categoryId, stockQty, isCombo, brandId, soldByWeight, minOrderGrams } = req.body;
     if (!name || price === undefined || !categoryId) {
       return res.status(400).json({ error: "name, price and categoryId are required." });
     }
@@ -69,6 +82,8 @@ async function createMenuItem(req, res) {
         stockQty: stockQty !== undefined ? Number(stockQty) : 0,
         isCombo: isCombo !== undefined ? Boolean(isCombo) : false,
         brandId: brandId || null,
+        soldByWeight: soldByWeight !== undefined ? Boolean(soldByWeight) : false,
+        minOrderGrams: minOrderGrams !== undefined ? Number(minOrderGrams) : 1000,
       },
     });
     res.status(201).json({ item });
@@ -81,7 +96,7 @@ async function createMenuItem(req, res) {
 // PUT /api/menu/:id (ADMIN)
 async function updateMenuItem(req, res) {
   try {
-    const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo } = req.body;
+    const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo, soldByWeight, minOrderGrams } = req.body;
     const item = await prisma.menuItem.update({
       where: { id: req.params.id },
       data: {
@@ -93,6 +108,8 @@ async function updateMenuItem(req, res) {
         ...(isAvailable !== undefined && { isAvailable: Boolean(isAvailable) }),
         ...(categoryId !== undefined && { categoryId }),
         ...(isCombo !== undefined && { isCombo: Boolean(isCombo) }),
+        ...(soldByWeight !== undefined && { soldByWeight: Boolean(soldByWeight) }),
+        ...(minOrderGrams !== undefined && { minOrderGrams: Number(minOrderGrams) }),
       },
     });
     res.json({ item });
@@ -182,6 +199,7 @@ async function bulkCreateMenuItems(req, res) {
 module.exports = {
   listCategories,
   createCategory,
+  updateCategory,
   deleteCategory,
   listMenuItems,
   getMenuItem,

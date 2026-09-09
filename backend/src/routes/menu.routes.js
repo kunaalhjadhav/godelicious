@@ -10,6 +10,7 @@ router.get("/:id", menu.getMenuItem);
 
 // Admin-only management
 router.post("/categories", requireAuth, requireRole("ADMIN"), menu.createCategory);
+router.patch("/categories/:id", requireAuth, requireRole("ADMIN"), menu.updateCategory);
 router.delete("/categories/:id", requireAuth, requireRole("ADMIN"), menu.deleteCategory);
 
 router.post("/", requireAuth, requireRole("ADMIN"), menu.createMenuItem);

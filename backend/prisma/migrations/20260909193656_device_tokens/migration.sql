@@ -44,6 +44,17 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
+CREATE TABLE "DeviceToken" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DeviceToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Category" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -63,6 +74,8 @@ CREATE TABLE "MenuItem" (
     "isAvailable" BOOLEAN NOT NULL DEFAULT true,
     "stockQty" INTEGER NOT NULL DEFAULT 0,
     "isCombo" BOOLEAN NOT NULL DEFAULT false,
+    "soldByWeight" BOOLEAN NOT NULL DEFAULT false,
+    "minOrderGrams" INTEGER NOT NULL DEFAULT 1000,
     "categoryId" TEXT NOT NULL,
     "brandId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -364,6 +377,9 @@ CREATE TABLE "BrandSettlement" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "DeviceToken_token_key" ON "DeviceToken"("token");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Category_name_key" ON "Category"("name");
 
 -- CreateIndex
@@ -377,6 +393,9 @@ CREATE UNIQUE INDEX "Review_orderId_key" ON "Review"("orderId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_brandId_fkey" FOREIGN KEY ("brandId") REFERENCES "Brand"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DeviceToken" ADD CONSTRAINT "DeviceToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -91,6 +91,18 @@ model User {
 
   brandId  String? // set only for role = BRAND_PARTNER; which brand this login manages
   brand    Brand?  @relation(fields: [brandId], references: [id])
+  deviceTokens DeviceToken[]
+}
+
+// Registered device/browser push tokens for Firebase Cloud Messaging. A user
+// can have several (multiple devices, or a web browser + a phone).
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   // "web" | "android" | "ios"
+  createdAt DateTime @default(now())
 }
 
 model Category {
@@ -110,6 +122,8 @@ model MenuItem {
   isAvailable  Boolean  @default(true)
   stockQty     Int      @default(0)
   isCombo      Boolean  @default(false)
+  soldByWeight Boolean  @default(false) // true = priced per kg; quantity in the cart/order is grams
+  minOrderGrams Int     @default(1000)  // minimum order quantity (in grams) when soldByWeight is true
   categoryId   String
   category     Category @relation(fields: [categoryId], references: [id])
   brandId      String?  // null = house brand (Godelicious itself)
