@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setToken, clearToken } from "./api";
+import { requestNotificationToken } from "./firebase";
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,16 @@ export function AuthProvider({ children }) {
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
+
+  // Once someone's logged in, quietly try to set up push notifications —
+  // this no-ops entirely if Firebase isn't configured or permission is
+  // denied, so it's safe to always attempt.
+  useEffect(() => {
+    if (!user) return;
+    requestNotificationToken().then((token) => {
+      if (token) api.registerDevice(token, "web").catch(() => {});
+    });
+  }, [user]);
 
   async function login(email, password) {
     const data = await api.login(email, password);

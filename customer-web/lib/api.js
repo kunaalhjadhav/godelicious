@@ -48,6 +48,7 @@ export const api = {
   listCategories: () => request("/api/menu/categories"),
   listMenu: (categoryId) =>
     request(`/api/menu?available=true${categoryId ? `&categoryId=${categoryId}` : ""}`),
+  getMenuItem: (id) => request(`/api/menu/${id}`),
 
   createOrder: (payload) => request("/api/orders", { method: "POST", body: payload }),
   myOrders: () => request("/api/orders/my"),
@@ -92,4 +93,8 @@ export const api = {
   // Brand partner browsing
   listBrandsPublic: () => request("/api/brands/public"),
   listMenuByBrand: (brandId) => request(`/api/menu?available=true&brandId=${brandId}`),
+
+  // Push notifications
+  registerDevice: (token, platform) => request("/api/devices/register", { method: "POST", body: { token, platform } }),
+  unregisterDevice: (token) => request("/api/devices/register", { method: "DELETE", body: { token } }),
 };

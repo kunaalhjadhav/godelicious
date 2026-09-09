@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import ComboPickerModal from "@/components/ComboPickerModal";
@@ -15,6 +15,7 @@ function resolveUrl(url) {
 
 export default function BrandDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [brand, setBrand] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,9 @@ export default function BrandDetailPage() {
   }, [id]);
 
   function handleAddClick(item) {
-    if (item.isCombo && item.comboGroups?.length > 0) {
+    if (item.soldByWeight) {
+      router.push(`/menu/${item.id}`);
+    } else if (item.isCombo && item.comboGroups?.length > 0) {
       setComboItem(item);
     } else {
       addItem(item);
@@ -69,29 +72,41 @@ export default function BrandDetailPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {items.map((item) => (
-              <div key={item.id} className="bg-white border border-line rounded-sm overflow-hidden flex flex-col">
-                <div
-                  className="h-32 bg-line"
-                  style={item.imageUrl ? { backgroundImage: `url(${resolveUrl(item.imageUrl)})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-                />
+              <div key={item.id} className="card-surface card-surface--interactive overflow-hidden flex flex-col">
+                <Link href={`/menu/${item.id}`} className="block">
+                  <div className="h-56 bg-paper flex items-center justify-center overflow-hidden">
+                    {item.imageUrl ? (
+                      <img src={resolveUrl(item.imageUrl)} alt={item.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-full h-full bg-line" />
+                    )}
+                  </div>
+                </Link>
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-basil" : "bg-chili"}`} />
-                    <h3 className="font-display text-lg text-ink">{item.name}</h3>
+                    <Link href={`/menu/${item.id}`} className="font-display text-lg text-ink hover:text-saffron2">
+                      {item.name}
+                    </Link>
                     {item.isCombo && (
                       <span className="text-[10px] font-mono uppercase bg-saffron/20 text-saffron2 px-1.5 py-0.5 rounded-sm">
                         Combo
                       </span>
                     )}
+                    {item.soldByWeight && (
+                      <span className="text-[10px] font-mono uppercase bg-basil/15 text-basil px-1.5 py-0.5 rounded-sm">
+                        Per kg
+                      </span>
+                    )}
                   </div>
                   {item.description && <p className="text-sm text-ink/60 mb-3 line-clamp-2">{item.description}</p>}
                   <div className="mt-auto flex items-center justify-between pt-2">
-                    <span className="font-mono font-medium text-ink">₹{item.price}</span>
+                    <span className="font-mono font-medium text-ink">₹{item.price}{item.soldByWeight ? " / kg" : ""}</span>
                     <button
                       onClick={() => handleAddClick(item)}
-                      className="bg-saffron text-charcoal text-xs font-semibold px-3 py-1.5 rounded-sm hover:bg-saffron2"
+                      className="btn-accent text-xs"
                     >
-                      {item.isCombo ? "Customize" : "Add to cart"}
+                      {item.isCombo || item.soldByWeight ? "Customize" : "Add to cart"}
                     </button>
                   </div>
                 </div>

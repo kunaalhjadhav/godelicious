@@ -5,7 +5,7 @@ import Nav from "@/components/Nav";
 import { useCart } from "@/lib/useCart";
 
 export default function CartPage() {
-  const { items, totalAmount, addItem, decrementItem, removeItem } = useCart();
+  const { items, totalAmount, addItem, decrementItem, updateQuantity, removeItem } = useCart();
 
   return (
     <div className="min-h-screen bg-paper">
@@ -30,23 +30,43 @@ export default function CartPage() {
                         {line.selectedOptions.map((o) => o.optionLabel).join(", ")}
                       </div>
                     )}
-                    <div className="text-sm text-ink/50">₹{line.unitPrice} each</div>
+                    <div className="text-sm text-ink/50">
+                      {line.menuItem.soldByWeight ? `₹${line.menuItem.price} / kg` : `₹${line.unitPrice} each`}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => decrementItem(line.key)}
-                      className="w-7 h-7 rounded-sm bg-line text-ink flex items-center justify-center"
-                    >
-                      −
-                    </button>
-                    <span className="w-6 text-center font-medium">{line.quantity}</span>
-                    <button
-                      onClick={() => addItem(line.menuItem, line.selectedOptions)}
-                      className="w-7 h-7 rounded-sm bg-line text-ink flex items-center justify-center"
-                    >
-                      +
-                    </button>
-                  </div>
+                  {line.menuItem.soldByWeight ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateQuantity(line.key, Math.max(250, line.quantity - 250))}
+                        className="w-7 h-7 rounded-sm bg-line text-ink flex items-center justify-center"
+                      >
+                        −
+                      </button>
+                      <span className="w-16 text-center font-medium text-sm">{line.quantity}g</span>
+                      <button
+                        onClick={() => updateQuantity(line.key, line.quantity + 250)}
+                        className="w-7 h-7 rounded-sm bg-line text-ink flex items-center justify-center"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => decrementItem(line.key)}
+                        className="w-7 h-7 rounded-sm bg-line text-ink flex items-center justify-center"
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center font-medium">{line.quantity}</span>
+                      <button
+                        onClick={() => addItem(line.menuItem, line.selectedOptions)}
+                        className="w-7 h-7 rounded-sm bg-line text-ink flex items-center justify-center"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                   <div className="w-20 text-right font-mono text-sm">
                     ₹{(line.unitPrice * line.quantity).toFixed(0)}
                   </div>

@@ -21,7 +21,7 @@ export default function OrderTypesSection() {
   if (orderTypes.length === 0) return null;
 
   return (
-    <section className="max-w-5xl mx-auto px-5 -mt-10 sm:-mt-14 relative z-10 mb-4 fade-in">
+    <section className="max-w-5xl mx-auto px-5 pt-8 mb-4 fade-in">
       <div className="grid sm:grid-cols-3 gap-4">
         {orderTypes.map((ot) => (
           <button

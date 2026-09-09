@@ -46,6 +46,22 @@ export default function CheckoutPage() {
     api.getSettings().then((d) => setSettings(d.settings)).catch(() => {});
   }, []);
 
+  // Reverse-geocodes lat/lng into a human-readable address via Google's
+  // Geocoding API. Needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY set — without it,
+  // this silently no-ops and the address field is left for manual entry.
+  async function reverseGeocode(lat, lng) {
+    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!key) return null;
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`);
+      const data = await res.json();
+      if (data.status === "OK" && data.results?.[0]) return data.results[0].formatted_address;
+    } catch (err) {
+      console.error("Reverse geocoding failed:", err);
+    }
+    return null;
+  }
+
   function useMyLocation() {
     if (!navigator.geolocation) {
       setError("Location isn't supported in this browser.");
@@ -53,8 +69,11 @@ export default function CheckoutPage() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCoords({ latitude, longitude });
+        const addr = await reverseGeocode(latitude, longitude);
+        if (addr) setAddress(addr);
         setLocating(false);
       },
       () => {
