@@ -183,7 +183,8 @@ async function createOrder(req, res) {
           orderType: true,
         },
       });
-    });
+    }, { timeout: 20000, maxWait: 10000 }); // default 5s timeout is too tight for this many
+    // sequential checks (stock, combos, coupon, order type, addons) over a pooled connection
 
     res.status(201).json({ order });
   } catch (err) {
@@ -281,7 +282,7 @@ async function updateOrderStatus(req, res) {
         data: { status },
         include: { items: { include: { menuItem: true } } },
       });
-    });
+    }, { timeout: 15000, maxWait: 10000 });
 
     sendPushToUser(order.userId, {
       title: "Order update",
