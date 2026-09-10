@@ -6,7 +6,7 @@ import Shell from "@/components/Shell";
 import { api, API_URL } from "@/lib/api";
 import { APP_NAME } from "@/lib/brand";
 
-const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", brandId: "" };
+const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", brandId: "", soldByWeight: false };
 
 export default function MenuPage() {
   const [items, setItems] = useState([]);
@@ -102,6 +102,7 @@ export default function MenuPage() {
       brandId: item.brandId || "",
       stockQty: item.stockQty,
       imageUrl: item.imageUrl || "",
+      soldByWeight: item.soldByWeight || false,
     });
   }
 
@@ -157,9 +158,14 @@ export default function MenuPage() {
                   </td>
                   <td className="px-4 py-3">                    {item.name}
                     <span className={`ml-2 inline-block w-2 h-2 rounded-full ${item.isVeg ? "bg-basil" : "bg-chili"}`} />
+                    {item.soldByWeight && (
+                      <span className="ml-2 text-[10px] font-mono uppercase bg-basil/15 text-basil px-1.5 py-0.5 rounded-sm">
+                        per kg
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-ink/60">{item.category?.name}</td>
-                  <td className="px-4 py-3 font-mono">₹{item.price}</td>
+                  <td className="px-4 py-3 font-mono">₹{item.price}{item.soldByWeight ? "/kg" : ""}</td>
                   <td className="px-4 py-3 font-mono">{item.stockQty}</td>
                   <td className="px-4 py-3">
                     <button
@@ -236,13 +242,27 @@ export default function MenuPage() {
                 className="w-1/2 px-3 py-2 border border-line rounded-sm text-sm"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm mb-4">
+            <label className="flex items-center gap-2 text-sm mb-2">
               <input
                 type="checkbox" checked={form.isVeg}
                 onChange={(e) => setForm({ ...form, isVeg: e.target.checked })}
               />
               Vegetarian
             </label>
+            <label className="flex items-center gap-2 text-sm mb-1">
+              <input
+                type="checkbox" checked={form.soldByWeight}
+                onChange={(e) => setForm({ ...form, soldByWeight: e.target.checked })}
+              />
+              Sold by weight (priced per kg)
+            </label>
+            {form.soldByWeight && (
+              <p className="text-xs text-ink/40 mb-3 ml-6">
+                Price above will be treated as ₹ per kg. Customers order in grams;
+                a ₹1,000 minimum order value applies automatically.
+              </p>
+            )}
+            <div className="mb-3" />
             <div className="flex gap-2">
               <button type="submit" className="btn-primary text-sm flex-1">
                 {editingId ? "Save changes" : "Add item"}

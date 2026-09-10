@@ -50,6 +50,8 @@ export const api = {
   updateMenuItem: (id, item) => request(`/api/menu/${id}`, { method: "PUT", body: item }),
   deleteMenuItem: (id) => request(`/api/menu/${id}`, { method: "DELETE" }),
   createCategory: (name) => request("/api/menu/categories", { method: "POST", body: { name } }),
+  updateCategory: (id, payload) => request(`/api/menu/categories/${id}`, { method: "PATCH", body: payload }),
+  deleteCategory: (id) => request(`/api/menu/categories/${id}`, { method: "DELETE" }),
 
   // Multipart upload — bypasses the JSON request() wrapper since it needs
   // FormData with no Content-Type header (the browser sets the boundary itself).

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ClipboardList, Boxes, Utensils, PlusSquare, Warehouse, CalendarHeart,
-  Tag, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
+  Tag, Tags, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
   SlidersHorizontal, LogOut,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
@@ -32,6 +32,7 @@ const NAV_GROUPS = [
     label: "Catalog",
     items: [
       { href: "/menu", label: "Menu", icon: Utensils },
+      { href: "/categories", label: "Categories", icon: Tags },
       { href: "/addons", label: "Add-ons", icon: PlusSquare },
     ],
   },
