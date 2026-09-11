@@ -181,6 +181,7 @@ async function createOrder(req, res) {
           items: { include: { menuItem: true } },
           addons: { include: { addon: true } },
           orderType: true,
+          deliveryPartner: true,
         },
       });
     }, { timeout: 20000, maxWait: 10000 }); // default 5s timeout is too tight for this many
@@ -201,6 +202,7 @@ async function myOrders(req, res) {
       items: { include: { menuItem: true } },
       addons: { include: { addon: true } },
       orderType: true,
+          deliveryPartner: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -215,6 +217,7 @@ async function getOrder(req, res) {
       items: { include: { menuItem: true } },
       addons: { include: { addon: true } },
       orderType: true,
+          deliveryPartner: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       review: true,
     },
@@ -239,6 +242,7 @@ async function listOrders(req, res) {
       items: { include: { menuItem: true } },
       addons: { include: { addon: true } },
       orderType: true,
+          deliveryPartner: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -315,4 +319,24 @@ async function confirmCod(req, res) {
   res.json({ order: updated });
 }
 
-module.exports = { createOrder, myOrders, getOrder, listOrders, updateOrderStatus, confirmCod };
+// PATCH /api/orders/:id/forward (ADMIN/STAFF)
+// Records which delivery partner an order was forwarded to. The actual
+// WhatsApp message is built and opened client-side (wa.me link) — this
+// endpoint just tracks that the forward happened, for the admin's own records.
+// body: { deliveryPartnerId }
+async function forwardToPartner(req, res) {
+  const { deliveryPartnerId } = req.body;
+  if (!deliveryPartnerId) return res.status(400).json({ error: "deliveryPartnerId is required." });
+
+  const partner = await prisma.deliveryPartner.findUnique({ where: { id: deliveryPartnerId } });
+  if (!partner) return res.status(404).json({ error: "Delivery partner not found." });
+
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: { deliveryPartnerId, forwardedAt: new Date() },
+    include: { deliveryPartner: true },
+  });
+  res.json({ order });
+}
+
+module.exports = { createOrder, myOrders, getOrder, listOrders, updateOrderStatus, confirmCod, forwardToPartner };

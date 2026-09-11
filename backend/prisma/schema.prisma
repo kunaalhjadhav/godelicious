@@ -188,12 +188,29 @@ model Order {
   codConfirmedAt   DateTime?
   codConfirmedBy   String?       // staff/admin user id who confirmed COD payment collection
 
+  deliveryPartnerId String?
+  deliveryPartner    DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
+  forwardedAt        DateTime?        // when this order was sent to the delivery partner via WhatsApp
+
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   items  OrderItem[]
   addons OrderAddon[]
   review Review?
+}
+
+// A delivery/courier contact orders can be forwarded to via a WhatsApp
+// click-to-chat link (no WhatsApp Business API needed — just opens WhatsApp
+// with a pre-filled message the admin taps send on).
+model DeliveryPartner {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  orders Order[]
 }
 
 // The three top-level packages shown on the home page: Meal Box, Delivery

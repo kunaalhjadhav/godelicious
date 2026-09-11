@@ -4,33 +4,23 @@ const { signToken } = require("../utils/jwt");
 
 const OTP_TTL_MINUTES = 10;
 
-const USE_TWILIO = Boolean(
-  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID
-);
+const USE_MSG91 = Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_TEMPLATE_ID);
 
-if (!USE_TWILIO) {
+if (!USE_MSG91) {
   console.warn(
-    "[otp] TWILIO_* env vars not set — falling back to a dev-only OTP mode that returns the " +
-    "code directly in the API response instead of sending a real SMS. Fine for local testing, " +
-    "but no code is ever actually delivered to a phone. Set Twilio credentials before going live " +
-    "— see PRODUCTION_READY_GUIDE.md section 3."
+    "[otp] MSG91_AUTH_KEY / MSG91_TEMPLATE_ID not set — falling back to a dev-only OTP mode " +
+    "that returns the code directly in the API response instead of sending a real SMS. Fine for " +
+    "local testing, but no code is ever actually delivered to a phone. Set MSG91 credentials " +
+    "before going live — see PRODUCTION_READY_GUIDE.md section 3."
   );
 }
 
-function twilioClient() {
-  // Lazily required so the app doesn't crash on boot if the package or
-  // credentials aren't present yet — matches the Cloudinary/Razorpay pattern.
-  const twilio = require("twilio");
-  return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-}
-
-// Twilio Verify expects E.164 format (e.g. +919876543210). If the number
-// doesn't already start with "+", assume India (+91) as a sane default for
-// this project — adjust here if you operate in a different country.
-function toE164(phone) {
+// MSG91 expects a country code prefixed but no "+" sign (e.g. 919876543210).
+// Defaults to India (91) if the number looks like a bare 10-digit mobile.
+function toMsg91Number(phone) {
   const digits = phone.replace(/\D/g, "");
-  if (phone.startsWith("+")) return phone;
-  return `+91${digits}`;
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
 }
 
 // POST /api/auth/otp/request
@@ -39,20 +29,31 @@ async function requestOtp(req, res) {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ error: "phone is required." });
 
-  if (USE_TWILIO) {
+  if (USE_MSG91) {
     try {
-      const client = twilioClient();
-      await client.verify.v2
-        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-        .verifications.create({ to: toE164(phone), channel: "sms" });
+      const mobile = toMsg91Number(phone);
+      const response = await fetch("https://control.msg91.com/api/v5/otp", {
+        method: "POST",
+        headers: { authkey: process.env.MSG91_AUTH_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_id: process.env.MSG91_TEMPLATE_ID,
+          mobile,
+          otp_expiry: OTP_TTL_MINUTES,
+        }),
+      });
+      const data = await response.json();
+      if (data.type !== "success") {
+        console.error("MSG91 requestOtp error:", data.message);
+        return res.status(500).json({ error: "Could not send OTP. Please check the phone number and try again." });
+      }
       return res.json({ success: true, message: "OTP sent." });
     } catch (err) {
-      console.error("Twilio requestOtp error:", err.message);
+      console.error("MSG91 requestOtp error:", err.message);
       return res.status(500).json({ error: "Could not send OTP. Please check the phone number and try again." });
     }
   }
 
-  // ---- Dev-only fallback (no Twilio configured) ----
+  // ---- Dev-only fallback (no MSG91 configured) ----
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
   await prisma.otpCode.create({ data: { phone, code, expiresAt } });
@@ -72,17 +73,20 @@ async function verifyOtp(req, res) {
   const { phone, code, name } = req.body;
   if (!phone || !code) return res.status(400).json({ error: "phone and code are required." });
 
-  if (USE_TWILIO) {
+  if (USE_MSG91) {
     try {
-      const client = twilioClient();
-      const check = await client.verify.v2
-        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-        .verificationChecks.create({ to: toE164(phone), code });
-      if (check.status !== "approved") {
+      const mobile = toMsg91Number(phone);
+      const url = `https://control.msg91.com/api/v5/otp/verify?otp=${encodeURIComponent(code)}&mobile=${encodeURIComponent(mobile)}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { authkey: process.env.MSG91_AUTH_KEY },
+      });
+      const data = await response.json();
+      if (data.type !== "success") {
         return res.status(400).json({ error: "Invalid or expired code." });
       }
     } catch (err) {
-      console.error("Twilio verifyOtp error:", err.message);
+      console.error("MSG91 verifyOtp error:", err.message);
       return res.status(400).json({ error: "Invalid or expired code." });
     }
   } else {

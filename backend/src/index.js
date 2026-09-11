@@ -28,6 +28,7 @@ const addonsRoutes = require("./routes/addons.routes");
 const brandPartnersRoutes = require("./routes/brandPartners.routes");
 const offersRoutes = require("./routes/offers.routes");
 const devicesRoutes = require("./routes/devices.routes");
+const deliveryPartnersRoutes = require("./routes/deliveryPartners.routes");
 
 const app = express();
 
@@ -109,6 +110,7 @@ app.use("/api/addons", addonsRoutes);
 app.use("/api/brand-partners", brandPartnersRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/devices", devicesRoutes);
+app.use("/api/delivery-partners", deliveryPartnersRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));

@@ -11,5 +11,6 @@ router.get("/", requireRole("ADMIN", "STAFF"), orders.listOrders);
 router.get("/:id", orders.getOrder);
 router.patch("/:id/status", requireRole("ADMIN", "STAFF"), orders.updateOrderStatus);
 router.patch("/:id/confirm-cod", requireRole("ADMIN", "STAFF"), orders.confirmCod);
+router.patch("/:id/forward", requireRole("ADMIN", "STAFF"), orders.forwardToPartner);
 
 module.exports = router;
