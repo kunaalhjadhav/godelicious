@@ -25,6 +25,8 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState(null);
+  const [partners, setPartners] = useState([]);
+  const [selectedPartner, setSelectedPartner] = useState({}); // { [orderId]: partnerId }
 
   function load() {
     api
@@ -34,6 +36,64 @@ export default function OrdersPage() {
   }
 
   useEffect(load, [filter]);
+  useEffect(() => {
+    api.listActiveDeliveryPartners().then((d) => setPartners(d.partners)).catch(() => {});
+  }, []);
+
+  // Formats a phone number for a wa.me link — strips everything but digits,
+  // and assumes India (+91) if no country code looks present (10-digit number).
+  function toWhatsAppNumber(phone) {
+    const digits = (phone || "").replace(/\D/g, "");
+    if (digits.length === 10) return `91${digits}`;
+    return digits;
+  }
+
+  function buildOrderMessage(order) {
+    const mapsLink = order.latitude && order.longitude
+      ? `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.deliveryAddress)}`;
+
+    const itemLines = order.items.map((i) => `${i.quantity}x ${i.menuItem.name}`).join("\n");
+    const addonLines = (order.addons || []).map((a) => `${a.quantity}x ${a.addon.name} (add-on)`).join("\n");
+
+    return [
+      `*New Delivery — Order #${order.id.slice(0, 8)}*`,
+      ``,
+      `Customer: ${order.user.name}`,
+      `Phone: ${order.user.phone}`,
+      `Address: ${order.deliveryAddress}`,
+      `Directions: ${mapsLink}`,
+      ``,
+      `Payment: ${order.paymentMethod} — ${order.paymentStatus}`,
+      ``,
+      `Items:`,
+      itemLines,
+      addonLines,
+      ``,
+      `Total: ₹${order.totalAmount.toFixed(0)}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  async function forwardOrder(order) {
+    const partnerId = selectedPartner[order.id];
+    if (!partnerId) {
+      setError("Pick a delivery partner first.");
+      return;
+    }
+    const partner = partners.find((p) => p.id === partnerId);
+    if (!partner) return;
+
+    const message = buildOrderMessage(order);
+    const waNumber = toWhatsAppNumber(partner.phone);
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, "_blank");
+
+    try {
+      await api.forwardOrderToPartner(order.id, partnerId);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function advance(order) {
     const next = NEXT_STATUS[order.status];
@@ -108,6 +168,11 @@ export default function OrdersPage() {
                 <span className={`text-xs font-mono px-1.5 py-0.5 rounded-sm ${order.paymentStatus === "PAID" ? "bg-basil/10 text-basil" : "bg-saffron/10 text-saffron2"}`}>
                   {order.paymentMethod} · {order.paymentStatus}
                 </span>
+                {order.deliveryPartner && (
+                  <span className="text-xs font-mono px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-700">
+                    → {order.deliveryPartner.name}
+                  </span>
+                )}
               </div>
               <div className="font-medium text-ink">{order.user.name} · {order.user.phone}</div>
               <div className="text-sm text-ink/60">{order.deliveryAddress}</div>
@@ -142,6 +207,27 @@ export default function OrdersPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2 shrink-0">
+              {partners.length > 0 && (
+                <div className="flex gap-1">
+                  <select
+                    value={selectedPartner[order.id] || ""}
+                    onChange={(e) => setSelectedPartner({ ...selectedPartner, [order.id]: e.target.value })}
+                    className="text-xs border border-line rounded-sm px-1.5 py-1.5 bg-white max-w-[120px]"
+                  >
+                    <option value="">Partner…</option>
+                    {partners.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => forwardOrder(order)}
+                    className="bg-[#25D366] text-white text-xs px-2.5 py-1.5 rounded-sm whitespace-nowrap"
+                    title="Opens WhatsApp with order details pre-filled"
+                  >
+                    Forward
+                  </button>
+                </div>
+              )}
               {order.paymentMethod === "COD" && order.paymentStatus !== "PAID" && (
                 <button
                   onClick={() => confirmCod(order)}

@@ -185,4 +185,13 @@ export const api = {
   listAllOffers: (status) => request(`/api/offers/all${status ? `?status=${status}` : ""}`),
   reviewOffer: (id, status, adminNote) =>
     request(`/api/offers/${id}`, { method: "PATCH", body: { status, adminNote } }),
+
+  // Delivery partners
+  listActiveDeliveryPartners: () => request("/api/delivery-partners"),
+  listAllDeliveryPartners: () => request("/api/delivery-partners/all"),
+  createDeliveryPartner: (payload) => request("/api/delivery-partners", { method: "POST", body: payload }),
+  updateDeliveryPartner: (id, payload) => request(`/api/delivery-partners/${id}`, { method: "PATCH", body: payload }),
+  deleteDeliveryPartner: (id) => request(`/api/delivery-partners/${id}`, { method: "DELETE" }),
+  forwardOrderToPartner: (orderId, deliveryPartnerId) =>
+    request(`/api/orders/${orderId}/forward`, { method: "PATCH", body: { deliveryPartnerId } }),
 };
