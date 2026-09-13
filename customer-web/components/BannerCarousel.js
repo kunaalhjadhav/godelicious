@@ -23,7 +23,13 @@ export default function BannerCarousel() {
     return () => clearInterval(t);
   }, [banners]);
 
-  if (banners.length === 0) return null;
+  if (banners.length === 0) {
+    return (
+      <div className="w-full h-40 sm:h-52 bg-charcoal flex items-center justify-center">
+        <p className="text-white/40 text-sm font-medium">Offers coming shortly</p>
+      </div>
+    );
+  }
 
   const banner = banners[index];
 

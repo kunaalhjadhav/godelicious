@@ -115,6 +115,9 @@ export default function BookingPage() {
   const subtotal = staffCost + addonsCost;
   const discount = couponStatus?.discountAmount || 0;
   const finalTotal = Math.max(0, subtotal - discount);
+  // Informational breakdown only — see the same note in checkout/page.js
+  const GST_RATE = 0.05;
+  const gstAmount = finalTotal - finalTotal / (1 + GST_RATE);
   const belowMinimum = settings && finalTotal < settings.minOrderAmount && finalTotal > 0;
 
   async function applyCoupon() {
@@ -391,6 +394,14 @@ export default function BookingPage() {
                 <span>−₹{discount.toFixed(0)}</span>
               </div>
             )}
+            <div className="flex justify-between text-sm text-ink/70">
+              <span>GST (5%, included)</span>
+              <span>₹{gstAmount.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-basil">
+              <span>Delivery</span>
+              <span>Free</span>
+            </div>
             <div className="flex justify-between font-semibold text-ink pt-2 border-t border-line mt-2">
               <span>Total</span>
               <span>₹{finalTotal.toFixed(0)}</span>

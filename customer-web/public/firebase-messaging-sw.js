@@ -10,12 +10,12 @@ importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "AIzaSyDSUrTNSH62dx_Of1d7wZvq2bgRjaQP-7E",
-  authDomain: "godeliciousapp.firebaseapp.com",
-  projectId: "godeliciousapp",
-  storageBucket: "godeliciousapp.firebasestorage.app",
-  messagingSenderId: "265340107200",
-  appId: "1:265340107200:web:8b492636d91146cbe33025"
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: "",
 });
 
 const messaging = firebase.messaging();

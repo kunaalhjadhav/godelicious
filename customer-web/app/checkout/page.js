@@ -99,6 +99,12 @@ export default function CheckoutPage() {
 
   const discount = couponStatus?.discountAmount || 0;
   const finalTotal = Math.max(0, totalAmount - discount);
+  // Informational breakdown only — does not change the amount actually
+  // charged. If you want GST added as a genuine extra charge on top of
+  // prices, that needs a backend pricing change too — check with your
+  // accountant on GST registration/compliance before doing that.
+  const GST_RATE = 0.05;
+  const gstAmount = finalTotal - finalTotal / (1 + GST_RATE);
   const belowMinimum = settings && finalTotal < settings.minOrderAmount && finalTotal > 0;
 
   async function handleSubmit(e) {
@@ -289,6 +295,14 @@ export default function CheckoutPage() {
                 <span>−₹{discount.toFixed(0)}</span>
               </div>
             )}
+            <div className="flex justify-between text-sm text-ink/70">
+              <span>GST (5%, included)</span>
+              <span>₹{gstAmount.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-basil">
+              <span>Delivery</span>
+              <span>Free</span>
+            </div>
             <div className="flex justify-between font-semibold text-ink pt-2">
               <span>Total</span>
               <span>₹{finalTotal.toFixed(0)}</span>

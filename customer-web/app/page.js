@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import Nav from "@/components/Nav";
+import BannerCarousel from "@/components/BannerCarousel";
 import OrderTypesSection from "@/components/OrderTypesSection";
 import ComboPickerModal from "@/components/ComboPickerModal";
 import { api, API_URL } from "@/lib/api";
@@ -68,6 +69,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-paper">
       <Nav />
+      <BannerCarousel />
 
       <OrderTypesSection />
 
