@@ -175,7 +175,20 @@ export default function OrdersPage() {
                 )}
               </div>
               <div className="font-medium text-ink">{order.user.name} · {order.user.phone}</div>
-              <div className="text-sm text-ink/60">{order.deliveryAddress}</div>
+              <div className="text-sm text-ink/60">
+                <a
+                  href={order.latitude && order.longitude
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.deliveryAddress)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="hover:text-saffron2 hover:underline"
+                >
+                  📍 {order.deliveryAddress}
+                </a>
+              </div>
+              <div className="text-xs text-ink/40 mt-0.5">
+                Placed {new Date(order.createdAt).toLocaleString()}
+              </div>
               {order.orderType && (
                 <div className="mt-1 text-xs">
                   <span className="bg-charcoal text-paper px-2 py-0.5 rounded-sm font-mono">{order.orderType.name}</span>
@@ -190,7 +203,7 @@ export default function OrdersPage() {
               <ul className="text-sm text-ink/70 mt-2">
                 {order.items.map((item) => (
                   <li key={item.id}>
-                    {item.quantity}× {item.menuItem.name} — ₹{(item.price * item.quantity).toFixed(0)}
+                    {item.menuItem.soldByWeight ? `${item.quantity}g` : `${item.quantity}×`} {item.menuItem.name} — ₹{(item.price * item.quantity).toFixed(0)}
                   </li>
                 ))}
                 {order.needsStaff && (
@@ -201,6 +214,11 @@ export default function OrdersPage() {
                     {oa.quantity}× {oa.addon.name} (add-on) — ₹{(oa.price * oa.quantity).toFixed(0)}
                   </li>
                 ))}
+                {order.discountAmount > 0 && (
+                  <li className="text-basil">
+                    Discount {order.couponCode ? `(${order.couponCode})` : ""} — −₹{order.discountAmount.toFixed(0)}
+                  </li>
+                )}
               </ul>
               <div className="mt-2 font-mono text-sm text-ink font-medium">
                 Total: ₹{order.totalAmount.toFixed(0)}

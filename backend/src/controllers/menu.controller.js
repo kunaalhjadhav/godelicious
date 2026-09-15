@@ -10,20 +10,21 @@ async function listCategories(req, res) {
 
 // POST /api/categories (ADMIN)
 async function createCategory(req, res) {
-  const { name, sortOrder } = req.body;
+  const { name, sortOrder, imageUrl } = req.body;
   if (!name) return res.status(400).json({ error: "name is required." });
-  const category = await prisma.category.create({ data: { name, sortOrder: sortOrder || 0 } });
+  const category = await prisma.category.create({ data: { name, sortOrder: sortOrder || 0, imageUrl } });
   res.status(201).json({ category });
 }
 
 // PATCH /api/menu/categories/:id (ADMIN)
 async function updateCategory(req, res) {
-  const { name, sortOrder } = req.body;
+  const { name, sortOrder, imageUrl } = req.body;
   const category = await prisma.category.update({
     where: { id: req.params.id },
     data: {
       ...(name !== undefined && { name }),
       ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
+      ...(imageUrl !== undefined && { imageUrl }),
     },
   });
   res.json({ category });

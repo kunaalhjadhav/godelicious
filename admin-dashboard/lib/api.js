@@ -49,7 +49,7 @@ export const api = {
   createMenuItem: (item) => request("/api/menu", { method: "POST", body: item }),
   updateMenuItem: (id, item) => request(`/api/menu/${id}`, { method: "PUT", body: item }),
   deleteMenuItem: (id) => request(`/api/menu/${id}`, { method: "DELETE" }),
-  createCategory: (name) => request("/api/menu/categories", { method: "POST", body: { name } }),
+  createCategory: (payload) => request("/api/menu/categories", { method: "POST", body: payload }),
   updateCategory: (id, payload) => request(`/api/menu/categories/${id}`, { method: "PATCH", body: payload }),
   deleteCategory: (id) => request(`/api/menu/categories/${id}`, { method: "DELETE" }),
 

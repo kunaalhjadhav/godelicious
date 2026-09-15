@@ -197,3 +197,59 @@ npx react-native run-android
 
 Whatever fails on this list, tell me exactly which checkbox and what you see — that turns
 "nothing works" into a specific, fixable bug report.
+
+---
+
+## 6. Mobile: bottom nav icons, category images, and order details (this round)
+
+**Bottom tab bar icons** — previously had none at all (just text labels), which is likely what
+looked like "invisible" elements. Fixed using plain emoji icons (🍽️ 📦 💬 👤) — deliberately
+**not** a vector icon library, since adding one means a new native dependency and another rebuild
+risk on a project that's already fought through plenty of Gradle issues. If you want more
+polished icons later, that's a deliberate follow-up, not a quick fix.
+
+**Categories now support images** — admin's Categories page has an image upload field, and the
+customer website's category selector now shows circular image cards instead of plain text chips.
+**Mobile's equivalent home-screen category selector was not updated this round** — same visual
+change can be ported to `HomeScreen.js` on request.
+
+**Admin order cards now show**: placement date/time, a clickable map link for the address, correct
+gram labeling for weight-sold items (previously showed a raw, confusing number like "2750×"),
+and a discount line when a coupon was used.
+
+---
+
+## 7. Logo, splash screen, and app icon — step by step
+
+### Logo (in-app, all three surfaces)
+Already covered in section 1 above — replace `logo.svg`/`logo.png` in each of `customer-web`,
+`admin-dashboard`, and `customer-app`.
+
+### Splash screen (the screen shown while the app is loading)
+This app doesn't use a splash-screen library (deliberately — avoiding another native dependency).
+The splash is controlled by two native Android files inside your `GodeliciousApp` project:
+
+1. **Background color**: `android/app/src/main/res/values/colors.xml` — find or add:
+   ```xml
+   <color name="splashscreen_background">#1C1B19</color>
+   ```
+   (use your brand's charcoal, or whatever color you want the splash background to be)
+
+2. **Splash image**: place your logo image at:
+   ```
+   android/app/src/main/res/drawable/splashscreen_logo.png
+   ```
+   (create the `drawable` folder if it doesn't exist)
+
+3. Confirm `android/app/src/main/res/values/styles.xml` references it — look for a
+   `SplashTheme` or similar style and confirm `android:windowBackground` points at a drawable
+   that includes `splashscreen_logo`. If this file doesn't already have splash-related entries
+   (varies by exactly how the project was originally scaffolded), this may need a small manual
+   addition — send me the current contents of `styles.xml` and I'll give you the exact lines.
+
+4. Rebuild for changes to appear — a splash screen can't be previewed without a full rebuild.
+
+### App icon (home screen icon)
+Covered in section 1 — regenerate all `mipmap-*` densities using
+[icon.kitchen](https://icon.kitchen) or Android Studio's Image Asset Studio, replace the files
+in `GodeliciousApp/android/app/src/main/res/mipmap-*/`, rebuild.
