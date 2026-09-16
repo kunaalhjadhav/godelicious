@@ -21,7 +21,7 @@ body {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-left: 3px solid currentColor;
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(4, 58, 8, 0.662);
 }
 
 /* ---- Shared component classes — same system as customer-web, so both
