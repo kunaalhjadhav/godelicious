@@ -11,11 +11,29 @@ const VALID_STATUSES = [
 ];
 
 // POST /api/orders (CUSTOMER)
+const MIN_LEAD_HOURS = 15;
+
+// Combines the date-only eventDate with a "H:MM AM/PM" eventTime string into
+// one real Date/time — needed since they arrive as two separate fields.
+function parseEventDateTime(eventDateStr, eventTimeStr) {
+  const date = new Date(eventDateStr);
+  const match = eventTimeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return date;
+  let [, h, m, period] = match;
+  h = parseInt(h, 10);
+  m = parseInt(m, 10);
+  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+  if (period.toUpperCase() === "AM" && h === 12) h = 0;
+  date.setHours(h, m, 0, 0);
+  return date;
+}
+
 // body: { items?: [{ menuItemId, quantity, selectedOptions? }], deliveryAddress, contactPhone,
-//         notes, couponCode?, eventDate?, eventTime?, guestCount?, latitude?, longitude?,
+//         notes, couponCode?, eventDate, eventTime, guestCount?, latitude?, longitude?,
 //         orderTypeId?, needsStaff?, staffCount?, addons?: [{ addonId, quantity }] }
 // `items` is optional: a booking (Meal Box / Delivery Box / Catering Order) can be placed
-// with just an orderType + staff/addons and no à la carte menu items.
+// with just an orderType + staff/addons and no à la carte menu items. eventDate/eventTime
+// are required on every order — see the 15-hour lead time check below.
 async function createOrder(req, res) {
   const {
     items, deliveryAddress, contactPhone, notes,
@@ -32,6 +50,17 @@ async function createOrder(req, res) {
   if (!deliveryAddress || !contactPhone) {
     return res.status(400).json({ error: "deliveryAddress and contactPhone are required." });
   }
+  if (!eventDate || !eventTime) {
+    return res.status(400).json({ error: "Please select a delivery date and time." });
+  }
+
+  const deliveryDateTime = parseEventDateTime(eventDate, eventTime);
+  const minAllowed = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
+  if (deliveryDateTime < minAllowed) {
+    return res.status(400).json({
+      error: `Orders must be placed at least ${MIN_LEAD_HOURS} hours before the selected delivery time. Please choose a later slot.`,
+    });
+  }
 
   const method = paymentMethod === "COD" ? "COD" : "ONLINE";
 
@@ -46,8 +75,6 @@ async function createOrder(req, res) {
     const order = await prisma.$transaction(async (tx) => {
       let subtotal = 0;
       const orderItemsData = [];
-
-      const MIN_WEIGHT_ITEM_VALUE = 1000; // ₹1000 minimum order value for any item sold by weight/kg
 
       for (const line of itemLines) {
         const menuItem = await tx.menuItem.findUnique({ where: { id: line.menuItemId } });
@@ -74,9 +101,10 @@ async function createOrder(req, res) {
         }
 
         const lineValue = unitPrice * line.quantity;
-        if (menuItem.soldByWeight && lineValue < MIN_WEIGHT_ITEM_VALUE) {
-          throw new Error(`Minimum order value for ${menuItem.name} is ₹${MIN_WEIGHT_ITEM_VALUE} — please add more quantity.`);
-        }
+        // No per-item minimum here — the order-wide minOrderAmount check further
+        // down applies to the whole cart's total, so a weight item can be
+        // combined with other items (or other weight items) to reach it together,
+        // rather than needing to hit the minimum entirely on its own.
 
         subtotal += lineValue;
         orderItemsData.push({

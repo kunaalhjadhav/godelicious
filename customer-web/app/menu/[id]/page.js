@@ -9,19 +9,9 @@ import ComboPickerModal from "@/components/ComboPickerModal";
 import { api, API_URL } from "@/lib/api";
 import { useCart } from "@/lib/useCart";
 
-const MIN_WEIGHT_ITEM_VALUE = 1000; // ₹1000 minimum order value — must match backend
-
 function resolveImageUrl(url) {
   if (!url) return null;
   return url.startsWith("http") ? url : `${API_URL}${url}`;
-}
-
-// Rounds up to the nearest 250g increment that reaches at least the target value
-function gramsForMinValue(pricePerKg) {
-  if (!pricePerKg) return 1000;
-  const pricePerGram = pricePerKg / 1000;
-  const rawGrams = MIN_WEIGHT_ITEM_VALUE / pricePerGram;
-  return Math.ceil(rawGrams / 250) * 250;
 }
 
 export default function MenuItemDetailPage() {
@@ -31,19 +21,11 @@ export default function MenuItemDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [comboOpen, setComboOpen] = useState(false);
-  const [grams, setGrams] = useState(1000);
-  const [minGrams, setMinGrams] = useState(1000);
+  const [grams, setGrams] = useState(250);
 
   useEffect(() => {
     setLoading(true);
-    api.getMenuItem(id).then((d) => {
-      setItem(d.item);
-      if (d.item?.soldByWeight) {
-        const min = gramsForMinValue(d.item.price);
-        setMinGrams(min);
-        setGrams(min);
-      }
-    }).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    api.getMenuItem(id).then((d) => setItem(d.item)).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, [id]);
 
   const { addItem } = useCart();
@@ -51,11 +33,6 @@ export default function MenuItemDetailPage() {
   function handlePrimaryAction() {
     if (!item) return;
     if (item.soldByWeight) {
-      const lineValue = (item.price / 1000) * grams;
-      if (lineValue < MIN_WEIGHT_ITEM_VALUE) {
-        setError(`Minimum order value for this item is ₹${MIN_WEIGHT_ITEM_VALUE} — please add more quantity.`);
-        return;
-      }
       addItem(item, [], grams);
       router.push("/cart");
       return;
@@ -148,7 +125,7 @@ export default function MenuItemDetailPage() {
                   </button>
                   <input
                     type="number" value={grams} step={250} min={250}
-                    onChange={(e) => setGrams(Number(e.target.value))}
+                    onChange={(e) => setGrams(Math.max(250, Number(e.target.value)))}
                     className="field-input w-28 text-center"
                   />
                   <button
@@ -161,7 +138,10 @@ export default function MenuItemDetailPage() {
                 </div>
                 <p className="text-sm text-ink/60 mt-3">
                   Line total: <span className="font-medium text-ink">₹{weightTotal}</span>
-                  <span className="text-ink/40"> (minimum order value: ₹{MIN_WEIGHT_ITEM_VALUE}, ≈ {minGrams}g at this price)</span>
+                </p>
+                <p className="text-xs text-ink/40 mt-1">
+                  Your cart's total (across all items) needs to reach the store's minimum order
+                  value at checkout — this item doesn't need to hit it alone.
                 </p>
               </div>
             )}

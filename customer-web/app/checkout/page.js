@@ -4,11 +4,44 @@ import { useEffect, useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
-import { MapPin, CheckCircle2 } from "lucide-react";
+import LocationPickerMap from "@/components/LocationPickerMap";
+import { MapPin, CheckCircle2, Map as MapIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { useCart } from "@/lib/useCart";
 import { APP_NAME } from "@/lib/brand";
+
+const MIN_LEAD_HOURS = 15;
+
+// Half-hour delivery slots, 8:00 AM – 9:00 PM
+function buildTimeSlots() {
+  const slots = [];
+  for (let mins = 8 * 60; mins <= 21 * 60; mins += 30) {
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    const period = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    slots.push(`${h12}:${m === 0 ? "00" : m} ${period}`);
+  }
+  return slots;
+}
+const TIME_SLOTS = buildTimeSlots();
+
+// Combines a yyyy-mm-dd date string with a "H:MM AM/PM" slot into one Date,
+// for the client-side lead-time check (backend re-validates this too).
+function combineDateTime(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  const date = new Date(dateStr);
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return date;
+  let [, h, m, period] = match;
+  h = parseInt(h, 10);
+  m = parseInt(m, 10);
+  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+  if (period.toUpperCase() === "AM" && h === 12) h = 0;
+  date.setHours(h, m, 0, 0);
+  return date;
+}
 
 export default function CheckoutPage() {
   const { user, loading } = useAuth();
@@ -19,8 +52,10 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
   const [guestCount, setGuestCount] = useState("");
   const [coords, setCoords] = useState(null);
+  const [showMap, setShowMap] = useState(false);
   const [locating, setLocating] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
@@ -106,10 +141,23 @@ export default function CheckoutPage() {
   const GST_RATE = 0.05;
   const gstAmount = finalTotal - finalTotal / (1 + GST_RATE);
   const belowMinimum = settings && finalTotal < settings.minOrderAmount && finalTotal > 0;
+  const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    if (!eventDate || !eventTime) {
+      setError("Please select a delivery date and time.");
+      return;
+    }
+    const chosen = combineDateTime(eventDate, eventTime);
+    const minAllowed = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
+    if (chosen < minAllowed) {
+      setError(`Orders must be placed at least ${MIN_LEAD_HOURS} hours before the selected delivery time.`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -121,7 +169,8 @@ export default function CheckoutPage() {
         deliveryAddress: address,
         contactPhone: phone,
         notes,
-        eventDate: eventDate || undefined,
+        eventDate,
+        eventTime,
         guestCount: guestCount || undefined,
         latitude: coords?.latitude,
         longitude: coords?.longitude,
@@ -198,7 +247,7 @@ export default function CheckoutPage() {
           />
           <button
             type="button" onClick={useMyLocation} disabled={locating}
-            className="inline-flex items-center gap-1 text-xs text-saffron2 hover:underline mb-3 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-xs text-saffron2 hover:underline mb-3 disabled:opacity-50 mr-4"
           >
             {locating ? (
               "Getting location…"
@@ -208,6 +257,21 @@ export default function CheckoutPage() {
               <><MapPin size={13} /> Use my current location</>
             )}
           </button>
+          <button
+            type="button" onClick={() => setShowMap((s) => !s)}
+            className="inline-flex items-center gap-1 text-xs text-saffron2 hover:underline mb-3"
+          >
+            <MapIcon size={13} /> {showMap ? "Hide map" : "Pick on map"}
+          </button>
+          {showMap && (
+            <LocationPickerMap
+              initialLat={coords?.latitude} initialLng={coords?.longitude}
+              onLocationSelected={({ latitude, longitude, address: mapAddress }) => {
+                setCoords({ latitude, longitude });
+                if (mapAddress) setAddress(mapAddress);
+              }}
+            />
+          )}
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Contact phone</label>
           <input
@@ -218,10 +282,10 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">
-                Event date (optional)
+                Delivery date
               </label>
               <input
-                type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
+                type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)}
                 className="field-input"
               />
             </div>
@@ -236,6 +300,32 @@ export default function CheckoutPage() {
               />
             </div>
           </div>
+
+          <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Delivery time</label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {TIME_SLOTS.map((slot) => (
+              <button
+                key={slot} type="button" onClick={() => setEventTime(slot)}
+                className={`text-xs px-3 py-1.5 rounded-sm border transition-colors ${
+                  eventTime === slot ? "border-saffron2 border-2 bg-saffron/10 text-saffron2 font-semibold" : "border-line text-ink bg-white"
+                }`}
+              >
+                {slot}
+              </button>
+            ))}
+          </div>
+          {eventDate && eventTime && (() => {
+            const chosen = combineDateTime(eventDate, eventTime);
+            const minAllowed = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
+            if (chosen < minAllowed) {
+              return (
+                <p className="text-xs text-chili mb-3">
+                  Orders must be placed at least {MIN_LEAD_HOURS} hours before the selected delivery time — please pick a later slot.
+                </p>
+              );
+            }
+            return <p className="text-xs text-basil mb-3">Delivered {new Date(chosen).toLocaleString()}</p>;
+          })()}
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Notes (optional)</label>
           <input
@@ -316,7 +406,7 @@ export default function CheckoutPage() {
           )}
 
           <button
-            type="submit" disabled={submitting || belowMinimum}
+            type="submit" disabled={submitting || belowMinimum || dateTimeInvalid}
             className="btn-primary w-full mt-5 py-3"
           >
             {submitting ? "Processing…" : paymentMethod === "COD" ? "Place order (Cash on delivery)" : "Pay & place order"}

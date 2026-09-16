@@ -75,24 +75,36 @@ export default function HomePage() {
 
       {/* Menu */}
       <section id="menu" className="max-w-5xl mx-auto px-5 py-10">
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-2">
+        <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-2">
           <button
             onClick={() => setActiveCategory(null)}
-            className={`shrink-0 px-4 py-1.5 rounded-full text-sm border transition-colors ${
-              activeCategory === null ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink bg-white hover:border-saffron2"
-            }`}
+            className={`shrink-0 flex flex-col items-center gap-1.5 w-20 group`}
           >
-            All
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 transition-colors ${
+              activeCategory === null ? "border-saffron2 bg-saffron/10" : "border-line bg-white group-hover:border-saffron2"
+            }`}>
+              <span className="text-2xl">🍴</span>
+            </div>
+            <span className={`text-xs font-medium ${activeCategory === null ? "text-saffron2" : "text-ink/70"}`}>All</span>
           </button>
           {categories.map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveCategory(c.id)}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-sm border transition-colors ${
-                activeCategory === c.id ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink bg-white hover:border-saffron2"
-              }`}
+              className="shrink-0 flex flex-col items-center gap-1.5 w-20 group"
             >
-              {c.name}
+              <div className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-colors ${
+                activeCategory === c.id ? "border-saffron2" : "border-line group-hover:border-saffron2"
+              }`}>
+                {c.imageUrl ? (
+                  <img src={resolveImageUrl(c.imageUrl)} alt={c.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-line flex items-center justify-center text-xl">🍽️</div>
+                )}
+              </div>
+              <span className={`text-xs font-medium text-center leading-tight ${activeCategory === c.id ? "text-saffron2" : "text-ink/70"}`}>
+                {c.name}
+              </span>
             </button>
           ))}
         </div>
