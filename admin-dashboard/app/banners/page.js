@@ -10,6 +10,7 @@ export default function BannersPage() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [title, setTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [menuItems, setMenuItems] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
@@ -17,6 +18,9 @@ export default function BannersPage() {
     api.listAllBanners().then((d) => setBanners(d.banners)).catch((e) => setError(e.message));
   }
   useEffect(load, []);
+  useEffect(() => {
+    api.listMenu().then((d) => setMenuItems(d.items)).catch(() => {});
+  }, []);
 
   function resolveUrl(url) {
     return url.startsWith("http") ? url : `${API_URL}${url}`;
@@ -142,11 +146,16 @@ export default function BannersPage() {
             onChange={(e) => setTitle(e.target.value)}
             className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
           />
-          <input
-            placeholder="Link URL when tapped (optional)" value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
-          />
+          <label className="field-label">Link to a menu item (optional)</label>
+          <select
+            value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
+            className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm bg-white"
+          >
+            <option value="">No link — banner is just a visual</option>
+            {menuItems.map((item) => (
+              <option key={item.id} value={`/menu/${item.id}`}>{item.name}</option>
+            ))}
+          </select>
 
           <button type="submit" className="btn-primary text-sm w-full">
             Add banner

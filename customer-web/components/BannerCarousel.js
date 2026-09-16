@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, API_URL } from "@/lib/api";
 
 function resolveUrl(url) {
@@ -10,6 +11,7 @@ function resolveUrl(url) {
 export default function BannerCarousel() {
   const [banners, setBanners] = useState([]);
   const [index, setIndex] = useState(0);
+  const router = useRouter();
 
   useEffect(() => {
     api.listBanners().then((d) => setBanners(d.banners)).catch(() => {});
@@ -33,8 +35,20 @@ export default function BannerCarousel() {
 
   const banner = banners[index];
 
+  function handleTap() {
+    if (!banner.linkUrl) return;
+    if (banner.linkUrl.startsWith("/")) {
+      router.push(banner.linkUrl);
+    } else {
+      window.open(banner.linkUrl, "_blank");
+    }
+  }
+
   return (
-    <div className="relative w-full h-64 sm:h-80 bg-charcoal overflow-hidden">
+    <div
+      className={`relative w-full h-64 sm:h-80 bg-charcoal overflow-hidden ${banner.linkUrl ? "cursor-pointer" : ""}`}
+      onClick={handleTap}
+    >
       {banner.mediaType === "IMAGE" ? (
         <img src={resolveUrl(banner.mediaUrl)} alt={banner.title || ""} className="w-full h-full object-cover" />
       ) : (
@@ -57,7 +71,7 @@ export default function BannerCarousel() {
           {banners.map((_, i) => (
             <button
               key={i}
-              onClick={() => setIndex(i)}
+              onClick={(e) => { e.stopPropagation(); setIndex(i); }}
               className={`w-1.5 h-1.5 rounded-full ${i === index ? "bg-saffron" : "bg-white/40"}`}
               aria-label={`Go to banner ${i + 1}`}
             />
