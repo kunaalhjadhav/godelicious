@@ -84,17 +84,36 @@ export default function CheckoutPage() {
   // Reverse-geocodes lat/lng into a human-readable address via Google's
   // Geocoding API. Needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY set — without it,
   // this silently no-ops and the address field is left for manual entry.
+  // Loads the Google Maps JS API once, so we can use its client-side Geocoder
+  // class. A raw fetch() straight to the Geocoding REST endpoint from the
+  // browser frequently gets CORS-blocked — the Geocoder class is the
+  // supported way to do this from client-side JS.
+  function loadGoogleMaps() {
+    if (window.google?.maps) return Promise.resolve();
+    if (window.__gmapsLoadingPromise) return window.__gmapsLoadingPromise;
+    window.__gmapsLoadingPromise = new Promise((resolve, reject) => {
+      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!key) { reject(new Error("no key")); return; }
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("load failed"));
+      document.head.appendChild(script);
+    });
+    return window.__gmapsLoadingPromise;
+  }
+
   async function reverseGeocode(lat, lng) {
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!key) return null;
     try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`);
-      const data = await res.json();
-      if (data.status === "OK" && data.results?.[0]) return data.results[0].formatted_address;
+      await loadGoogleMaps();
+      const geocoder = new window.google.maps.Geocoder();
+      const result = await geocoder.geocode({ location: { lat, lng } });
+      return result.results?.[0]?.formatted_address || null;
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
+      return null;
     }
-    return null;
   }
 
   function useMyLocation() {

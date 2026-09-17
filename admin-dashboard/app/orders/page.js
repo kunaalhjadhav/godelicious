@@ -189,15 +189,17 @@ export default function OrdersPage() {
               <div className="text-xs text-ink/40 mt-0.5">
                 Placed {new Date(order.createdAt).toLocaleString()}
               </div>
+              {order.eventDate && (
+                <div className="mt-1 text-xs">
+                  <span className="bg-basil/15 text-basil px-2 py-0.5 rounded-sm font-mono">
+                    Delivery: {new Date(order.eventDate).toLocaleDateString()}{order.eventTime ? ` · ${order.eventTime}` : ""}
+                  </span>
+                  {order.guestCount ? <span className="text-ink/50 ml-2">{order.guestCount} guests</span> : null}
+                </div>
+              )}
               {order.orderType && (
                 <div className="mt-1 text-xs">
                   <span className="bg-charcoal text-paper px-2 py-0.5 rounded-sm font-mono">{order.orderType.name}</span>
-                  {order.eventDate && (
-                    <span className="text-ink/50 ml-2">
-                      {new Date(order.eventDate).toLocaleDateString()}{order.eventTime ? ` · ${order.eventTime}` : ""}
-                      {order.guestCount ? ` · ${order.guestCount} guests` : ""}
-                    </span>
-                  )}
                 </div>
               )}
               <ul className="text-sm text-ink/70 mt-2">

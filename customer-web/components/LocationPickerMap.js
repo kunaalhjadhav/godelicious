@@ -78,12 +78,11 @@ export default function LocationPickerMap({ initialLat, initialLng, onLocationSe
   }, []);
 
   async function reverseGeocodeAndReport(lat, lng) {
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     let address = null;
     try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`);
-      const data = await res.json();
-      if (data.status === "OK" && data.results?.[0]) address = data.results[0].formatted_address;
+      const geocoder = new window.google.maps.Geocoder();
+      const result = await geocoder.geocode({ location: { lat, lng } });
+      address = result.results?.[0]?.formatted_address || null;
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
     }
