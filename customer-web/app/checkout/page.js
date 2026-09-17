@@ -93,12 +93,12 @@ export default function CheckoutPage() {
     if (window.__gmapsLoadingPromise) return window.__gmapsLoadingPromise;
     window.__gmapsLoadingPromise = new Promise((resolve, reject) => {
       const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-      if (!key) { reject(new Error("no key")); return; }
+      if (!key) { reject(new Error("Google Maps API key is not configured")); return; }
       const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
       script.async = true;
       script.onload = resolve;
-      script.onerror = () => reject(new Error("load failed"));
+      script.onerror = () => reject(new Error("Google Maps script failed to load — check your API key and that Maps JavaScript API is enabled"));
       document.head.appendChild(script);
     });
     return window.__gmapsLoadingPromise;
@@ -109,10 +109,12 @@ export default function CheckoutPage() {
       await loadGoogleMaps();
       const geocoder = new window.google.maps.Geocoder();
       const result = await geocoder.geocode({ location: { lat, lng } });
-      return result.results?.[0]?.formatted_address || null;
+      const address = result.results?.[0]?.formatted_address || null;
+      if (!address) return { address: null, error: "No address found for this location." };
+      return { address, error: null };
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
-      return null;
+      return { address: null, error: err.message || "Reverse geocoding failed." };
     }
   }
 
@@ -126,8 +128,12 @@ export default function CheckoutPage() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ latitude, longitude });
-        const addr = await reverseGeocode(latitude, longitude);
-        if (addr) setAddress(addr);
+        const { address: addr, error: geoErr } = await reverseGeocode(latitude, longitude);
+        if (addr) {
+          setAddress(addr);
+        } else {
+          setError(`Location captured, but couldn't fill in the address automatically (${geoErr}). Please type it manually, or use "Pick on map".`);
+        }
         setLocating(false);
       },
       () => {
@@ -321,18 +327,15 @@ export default function CheckoutPage() {
           </div>
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Delivery time</label>
-          <div className="flex flex-wrap gap-2 mb-2">
+          <select
+            required value={eventTime} onChange={(e) => setEventTime(e.target.value)}
+            className="field-input mb-2"
+          >
+            <option value="">Select a time</option>
             {TIME_SLOTS.map((slot) => (
-              <button
-                key={slot} type="button" onClick={() => setEventTime(slot)}
-                className={`text-xs px-3 py-1.5 rounded-sm border transition-colors ${
-                  eventTime === slot ? "border-saffron2 border-2 bg-saffron/10 text-saffron2 font-semibold" : "border-line text-ink bg-white"
-                }`}
-              >
-                {slot}
-              </button>
+              <option key={slot} value={slot}>{slot}</option>
             ))}
-          </div>
+          </select>
           {eventDate && eventTime && (() => {
             const chosen = combineDateTime(eventDate, eventTime);
             const minAllowed = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
@@ -394,7 +397,7 @@ export default function CheckoutPage() {
           <div className="border-t border-line mt-2 pt-4 space-y-1">
             {items.map((line) => (
               <div key={line.key} className="flex justify-between text-sm text-ink/70">
-                <span>{line.quantity}× {line.menuItem.name}</span>
+                <span>{line.menuItem.soldByWeight ? `${line.quantity}g` : `${line.quantity}×`} {line.menuItem.name}</span>
                 <span>₹{(line.unitPrice * line.quantity).toFixed(0)}</span>
               </div>
             ))}

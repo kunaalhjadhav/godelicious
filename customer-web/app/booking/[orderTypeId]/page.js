@@ -105,17 +105,34 @@ export default function BookingPage() {
   // Reverse-geocodes lat/lng into a human-readable address via Google's
   // Geocoding API. Needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY set — without it,
   // this silently no-ops and the address field is left for manual entry.
+  function loadGoogleMaps() {
+    if (window.google?.maps) return Promise.resolve();
+    if (window.__gmapsLoadingPromise) return window.__gmapsLoadingPromise;
+    window.__gmapsLoadingPromise = new Promise((resolve, reject) => {
+      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!key) { reject(new Error("Google Maps API key is not configured")); return; }
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Google Maps script failed to load — check your API key and that Maps JavaScript API is enabled"));
+      document.head.appendChild(script);
+    });
+    return window.__gmapsLoadingPromise;
+  }
+
   async function reverseGeocode(lat, lng) {
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!key) return null;
     try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`);
-      const data = await res.json();
-      if (data.status === "OK" && data.results?.[0]) return data.results[0].formatted_address;
+      await loadGoogleMaps();
+      const geocoder = new window.google.maps.Geocoder();
+      const result = await geocoder.geocode({ location: { lat, lng } });
+      const address = result.results?.[0]?.formatted_address || null;
+      if (!address) return { address: null, error: "No address found for this location." };
+      return { address, error: null };
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
+      return { address: null, error: err.message || "Reverse geocoding failed." };
     }
-    return null;
   }
 
   function useMyLocation() {
@@ -128,8 +145,12 @@ export default function BookingPage() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ latitude, longitude });
-        const addr = await reverseGeocode(latitude, longitude);
-        if (addr) setAddress(addr);
+        const { address: addr, error: geoErr } = await reverseGeocode(latitude, longitude);
+        if (addr) {
+          setAddress(addr);
+        } else {
+          setError(`Location captured, but couldn't fill in the address automatically (${geoErr}). Please type it manually, or use "Pick on map".`);
+        }
         setLocating(false);
       },
       () => {
@@ -278,18 +299,15 @@ export default function BookingPage() {
           />
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Delivery time</label>
-          <div className="flex flex-wrap gap-2 mb-2">
+          <select
+            required value={eventTime} onChange={(e) => setEventTime(e.target.value)}
+            className="field-input mb-2"
+          >
+            <option value="">Select a time</option>
             {TIME_SLOTS.map((slot) => (
-              <button
-                key={slot} type="button" onClick={() => setEventTime(slot)}
-                className={`text-xs px-3 py-1.5 rounded-sm border transition-colors ${
-                  eventTime === slot ? "border-saffron2 border-2 bg-saffron/10 text-saffron2 font-semibold" : "border-line text-ink bg-white"
-                }`}
-              >
-                {slot}
-              </button>
+              <option key={slot} value={slot}>{slot}</option>
             ))}
-          </div>
+          </select>
           {eventDate && eventTime && (() => {
             const chosen = combineDateTime(eventDate, eventTime);
             const minAllowed = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
