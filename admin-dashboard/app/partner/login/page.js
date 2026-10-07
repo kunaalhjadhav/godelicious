@@ -29,7 +29,7 @@ export default function PartnerLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-charcoal px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="" className="w-14 h-14 rounded-xl mx-auto mb-3" />
+          <img src="/logo.png" alt="" className="w-14 h-14 rounded-xl mx-auto mb-3" />
           <div className="font-display text-2xl text-paper tracking-tight">{APP_NAME} Partners</div>
           <div className="text-xs text-white/40 mt-1 font-mono uppercase tracking-widest">
             partner portal

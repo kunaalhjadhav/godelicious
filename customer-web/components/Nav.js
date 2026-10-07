@@ -19,7 +19,7 @@ export default function Nav() {
     <header className="bg-charcoal/95 backdrop-blur text-paper sticky top-0 z-40 border-b border-white/5">
       <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-display text-xl tracking-tight shrink-0">
-          <img src="/logo.svg" alt="" className="w-7 h-7 rounded-md" />
+          <img src="/logo.png" alt="" className="w-7 h-7 rounded-md" />
           {APP_NAME}
         </Link>
 

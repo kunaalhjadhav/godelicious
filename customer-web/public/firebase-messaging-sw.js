@@ -24,6 +24,6 @@ messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification || {};
   self.registration.showNotification(title || "Godelicious", {
     body: body || "",
-    icon: "/logo.svg",
+    icon: "/logo.png",
   });
 });

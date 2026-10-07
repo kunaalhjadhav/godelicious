@@ -86,7 +86,7 @@ export default function Shell({ children }) {
     <div className="min-h-screen flex bg-paper">
       <aside className="w-64 shrink-0 bg-charcoal text-paper flex flex-col">
         <div className="px-6 py-7 border-b border-white/10 flex items-center gap-2.5">
-          <img src="/logo.svg" alt="" className="w-8 h-8 rounded-md" />
+          <img src="/logo.png" alt="" className="w-8 h-8 rounded-md" />
           <div>
             <div className="font-display text-xl tracking-tight leading-none">{APP_NAME}</div>
             <div className="text-xs text-white/50 mt-0.5 font-mono">{APP_TAGLINE}</div>
