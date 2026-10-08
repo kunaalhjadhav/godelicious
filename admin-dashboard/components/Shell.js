@@ -6,10 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ClipboardList, Boxes, Utensils, PlusSquare, Warehouse, CalendarHeart,
   Tag, Tags, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
-  SlidersHorizontal, LogOut, Truck,
+  SlidersHorizontal, LogOut, Truck, ShieldCheck, Building2, Repeat,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import AlertSetup from "@/components/AlertSetup";
+import NewOrderWatcher from "@/components/NewOrderWatcher";
 
 // Grouped rather than one flat list — this dashboard has grown to 16 pages,
 // and grouping by function (rather than alphabetically or by add-order) is
@@ -26,6 +28,7 @@ const NAV_GROUPS = [
       { href: "/order-types", label: "Order Types", icon: Boxes },
       { href: "/inventory", label: "Inventory", icon: Warehouse },
       { href: "/venue-enquiries", label: "Venue Enquiries", icon: CalendarHeart },
+      { href: "/subscriptions", label: "Weekly Meal Boxes", icon: Repeat },
       { href: "/delivery-partners", label: "Delivery Partners", icon: Truck },
     ],
   },
@@ -56,7 +59,9 @@ const NAV_GROUPS = [
     label: "Partners",
     items: [
       { href: "/brands", label: "Brand Partners", icon: Store },
+      { href: "/approvals", label: "Item Approvals", icon: ShieldCheck },
       { href: "/offers-review", label: "Brand Offers", icon: BadgePercent },
+      { href: "/venues", label: "Venue Partners", icon: Building2 },
     ],
   },
   {
@@ -76,9 +81,11 @@ export default function Shell({ children }) {
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
+    else if (!loading && user && user.role === "BRAND_PARTNER") router.replace("/partner/dashboard");
+    else if (!loading && user && user.role === "VENUE_PARTNER") router.replace("/venue/dashboard");
   }, [loading, user, router]);
 
-  if (loading || !user) {
+  if (loading || !user || ["BRAND_PARTNER", "VENUE_PARTNER"].includes(user.role)) {
     return <div className="min-h-screen flex items-center justify-center bg-paper text-ink/50">Loading…</div>;
   }
 
@@ -124,6 +131,7 @@ export default function Shell({ children }) {
         </nav>
 
         <div className="px-6 py-4 border-t border-white/10 text-xs">
+          <AlertSetup />
           <div className="text-white/80">{user?.name}</div>
           <div className="text-white/40 mb-2">{user?.role}</div>
           <button onClick={logout} className="flex items-center gap-1 text-saffron hover:underline">
@@ -132,6 +140,7 @@ export default function Shell({ children }) {
         </div>
       </aside>
       <main className="flex-1 p-8 overflow-auto fade-in">{children}</main>
+      <NewOrderWatcher />
     </div>
   );
 }

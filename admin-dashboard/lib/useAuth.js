@@ -6,6 +6,12 @@ import { api, setToken, clearToken } from "./api";
 
 const AuthContext = createContext(null);
 
+function homeFor(role) {
+  if (role === "BRAND_PARTNER") return "/partner/dashboard";
+  if (role === "VENUE_PARTNER") return "/venue/dashboard";
+  return "/dashboard";
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,12 +27,19 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     const data = await api.login(email, password);
-    if (!["ADMIN", "STAFF", "BRAND_PARTNER"].includes(data.user.role)) {
+    if (!["ADMIN", "STAFF", "BRAND_PARTNER", "VENUE_PARTNER"].includes(data.user.role)) {
       throw new Error("This account does not have dashboard access.");
     }
     setToken(data.token);
     setUser(data.user);
-    router.push(data.user.role === "BRAND_PARTNER" ? "/partner/dashboard" : "/dashboard");
+    router.push(homeFor(data.user.role));
+  }
+
+  async function registerVenuePartner(payload) {
+    const data = await api.registerVenuePartner(payload);
+    setToken(data.token);
+    setUser(data.user);
+    router.push("/venue/dashboard");
   }
 
   async function registerBrandPartner(payload) {
@@ -37,13 +50,14 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    const role = user?.role;
     clearToken();
     setUser(null);
-    router.push("/login");
+    router.push(role === "BRAND_PARTNER" ? "/partner/login" : role === "VENUE_PARTNER" ? "/venue/login" : "/login");
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, registerBrandPartner }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, registerBrandPartner, registerVenuePartner }}>
       {children}
     </AuthContext.Provider>
   );

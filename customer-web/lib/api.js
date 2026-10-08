@@ -57,6 +57,15 @@ export const api = {
   createEnquiry: (payload) => request("/api/venue-enquiries", { method: "POST", body: payload }),
   myEnquiries: () => request("/api/venue-enquiries/my"),
 
+  listVenues: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+    return request(`/api/venues${qs ? `?${qs}` : ""}`);
+  },
+  getVenue: (id) => request(`/api/venues/${id}`),
+  requestVenue: (id, payload) => request(`/api/venues/${id}/bookings`, { method: "POST", body: payload }),
+  myVenueRequests: () => request("/api/venues/bookings/my"),
+  cancelVenueRequest: (id) => request(`/api/venues/bookings/${id}/cancel`, { method: "PATCH" }),
+
   listBanners: () => request("/api/banners"),
 
   validateCoupon: (code, subtotal) =>

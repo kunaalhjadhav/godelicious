@@ -129,7 +129,7 @@ export default function OrderDetailPage() {
           <h2 className="font-display text-lg mb-3">Items</h2>
           {order.items.map((item) => (
             <div key={item.id} className="flex justify-between text-sm py-1">
-              <span>{item.quantity}× {item.menuItem.name}</span>
+              <span>{item.menuItem.soldByWeight ? `${item.quantity}g` : `${item.quantity}×`} {item.menuItem.name}</span>
               <span>₹{(item.price * item.quantity).toFixed(0)}</span>
             </div>
           ))}

@@ -14,14 +14,14 @@ everything updates automatically, no code changes needed.
 
 | App | File to replace | Format | Used for |
 |---|---|---|---|
-| Admin dashboard | `admin-dashboard/public/logo.svg` | SVG | Sidebar, login page |
+| Admin dashboard | `admin-dashboard/public/logo.png` | PNG | Sidebar, login page |
 | Admin dashboard | `admin-dashboard/app/icon.png` | PNG, 512×512 | Browser tab favicon (Next.js auto-detects this filename) |
-| Customer web | `customer-web/public/logo.svg` | SVG | Nav bar |
+| Customer web | `customer-web/public/logo.png` | PNG | Nav bar |
 | Customer web | `customer-web/app/icon.png` | PNG, 512×512 | Browser tab favicon |
 | Customer app (mobile) | `customer-app/src/assets/logo.png` | PNG, 512×512 | Login screen |
 | Customer app (mobile) | *(native, see below)* | PNG, multiple sizes | Home-screen app icon |
 
-**Web/admin (SVG):** any SVG works — just keep the filename `logo.svg`. Square-ish artwork looks
+**Web/admin (PNG):** a square PNG works — just keep the filename `logo.png` (the full logo with text is `logo-full.png`). Square-ish artwork looks
 best since it's displayed in a rounded container.
 
 **Mobile home-screen icon** is different from the in-app logo above — Android requires the icon

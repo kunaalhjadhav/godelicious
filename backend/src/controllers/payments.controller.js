@@ -1,3 +1,4 @@
+const { notifyPaymentReceived } = require("../services/notify.service");
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const prisma = require("../config/db");
@@ -85,6 +86,7 @@ async function verifyRazorpayPayment(req, res) {
     where: { id: order.id },
     data: { paymentStatus: "PAID", razorpayPaymentId, razorpaySignature },
   });
+  notifyPaymentReceived(order.id);
   res.json({ order: updated });
 }
 

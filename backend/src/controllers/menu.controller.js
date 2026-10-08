@@ -1,4 +1,7 @@
 const prisma = require("../config/db");
+const { attachRatings } = require("../services/ratings.service");
+const { getBestsellers } = require("../services/bestsellers.service");
+const { checkBackInStock } = require("../services/backInStock.service");
 
 // ----- Categories -----
 
@@ -38,6 +41,10 @@ async function deleteCategory(req, res) {
 
 // ----- Menu Items -----
 
+function isStaff(req) {
+  return Boolean(req.user && ["ADMIN", "STAFF"].includes(req.user.role));
+}
+
 // GET /api/menu (public) - supports ?categoryId= and ?available=true
 async function listMenuItems(req, res) {
   const { categoryId, available, brandId } = req.query;
@@ -45,29 +52,61 @@ async function listMenuItems(req, res) {
   if (categoryId) where.categoryId = categoryId;
   if (available === "true") where.isAvailable = true;
   if (brandId) where.brandId = brandId === "house" ? null : brandId;
+  // Customers only see admin-approved items; staff see everything (incl. pending brand items)
+  if (!isStaff(req)) where.approvalStatus = "APPROVED";
 
   const items = await prisma.menuItem.findMany({
     where,
     include: { category: true, comboGroups: { include: { options: true } }, brand: true },
     orderBy: { name: "asc" },
   });
-  res.json({ items });
+  res.json({ items: await attachRatings(items) });
 }
 
 // GET /api/menu/:id (public)
 async function getMenuItem(req, res) {
   const item = await prisma.menuItem.findUnique({
     where: { id: req.params.id },
-    include: { category: true, comboGroups: { include: { options: true } } },
+    include: { category: true, comboGroups: { include: { options: true } }, brand: true },
   });
-  if (!item) return res.status(404).json({ error: "Menu item not found." });
-  res.json({ item });
+  if (!item || (item.approvalStatus !== "APPROVED" && !isStaff(req))) {
+    return res.status(404).json({ error: "Menu item not found." });
+  }
+  const [withRating] = await attachRatings([item]);
+  res.json({ item: withRating });
+}
+
+// GET /api/menu/:id/reviews (public) - reviews on delivered orders that included this item
+async function itemReviews(req, res) {
+  const reviews = await prisma.review.findMany({
+    where: { order: { items: { some: { menuItemId: req.params.id } } } },
+    include: { user: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  const [item] = await attachRatings([{ id: req.params.id }]);
+  res.json({
+    rating: item.rating,
+    ratingCount: item.ratingCount,
+    reviews: reviews.map((r) => {
+      const parts = (r.user?.name || "Customer").trim().split(/\s+/);
+      const shortName = parts.length > 1 ? `${parts[0]} ${parts[1].charAt(0)}.` : parts[0];
+      return { id: r.id, name: shortName, rating: r.rating, comment: r.comment, createdAt: r.createdAt };
+    }),
+  });
+}
+
+// GET /api/menu/bestsellers (public) - most ordered approved, available items
+async function bestsellers(req, res) {
+  const limit = Math.min(12, Number(req.query.limit) || 6);
+  const exclude = String(req.query.exclude || "").split(",").filter(Boolean);
+  res.json({ items: await getBestsellers(limit, exclude) });
 }
 
 // POST /api/menu (ADMIN)
 async function createMenuItem(req, res) {
   try {
-    const { name, description, price, imageUrl, isVeg, categoryId, stockQty, isCombo, brandId, soldByWeight, minOrderGrams } = req.body;
+    const { name, description, price, imageUrl, isVeg, categoryId, stockQty, isCombo, brandId, soldByWeight, minOrderGrams, servesPerUnit, plannerRole } = req.body;
     if (!name || price === undefined || !categoryId) {
       return res.status(400).json({ error: "name, price and categoryId are required." });
     }
@@ -85,6 +124,8 @@ async function createMenuItem(req, res) {
         brandId: brandId || null,
         soldByWeight: soldByWeight !== undefined ? Boolean(soldByWeight) : false,
         minOrderGrams: minOrderGrams !== undefined ? Number(minOrderGrams) : 1000,
+        servesPerUnit: servesPerUnit ? Math.max(1, Number(servesPerUnit)) : 1,
+        plannerRole: ["MAIN", "SWEET", "DRINK"].includes(plannerRole) ? plannerRole : null,
       },
     });
     res.status(201).json({ item });
@@ -97,7 +138,7 @@ async function createMenuItem(req, res) {
 // PUT /api/menu/:id (ADMIN)
 async function updateMenuItem(req, res) {
   try {
-    const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo, soldByWeight, minOrderGrams } = req.body;
+    const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo, soldByWeight, minOrderGrams, servesPerUnit, plannerRole } = req.body;
     const item = await prisma.menuItem.update({
       where: { id: req.params.id },
       data: {
@@ -111,8 +152,11 @@ async function updateMenuItem(req, res) {
         ...(isCombo !== undefined && { isCombo: Boolean(isCombo) }),
         ...(soldByWeight !== undefined && { soldByWeight: Boolean(soldByWeight) }),
         ...(minOrderGrams !== undefined && { minOrderGrams: Number(minOrderGrams) }),
+        ...(servesPerUnit !== undefined && { servesPerUnit: Math.max(1, Number(servesPerUnit) || 1) }),
+        ...(plannerRole !== undefined && { plannerRole: ["MAIN", "SWEET", "DRINK"].includes(plannerRole) ? plannerRole : null }),
       },
     });
+    checkBackInStock(item.id);
     res.json({ item });
   } catch (err) {
     console.error("updateMenuItem error:", err);
@@ -198,6 +242,8 @@ async function bulkCreateMenuItems(req, res) {
 }
 
 module.exports = {
+  itemReviews,
+  bestsellers,
   listCategories,
   createCategory,
   updateCategory,

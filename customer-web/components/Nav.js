@@ -30,6 +30,9 @@ export default function Nav() {
           <Link href="/brands" className={linkClass(pathname?.startsWith("/brands"))}>
             <Store size={15} /> Brand Partners
           </Link>
+          <Link href="/venues" className={linkClass(pathname?.startsWith("/venues"))}>
+            <CalendarHeart size={15} /> Book a venue
+          </Link>
           <Link href="/venue-enquiry" className={linkClass(pathname?.startsWith("/venue-enquiry"))}>
             <CalendarHeart size={15} /> Venue enquiry
           </Link>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import PartnerShell from "@/components/PartnerShell";
 import { api, API_URL } from "@/lib/api";
 
-const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "" };
+const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", soldByWeight: false };
 
 export default function PartnerMenuPage() {
   const [items, setItems] = useState([]);
@@ -13,6 +13,7 @@ export default function PartnerMenuPage() {
   const [editingId, setEditingId] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
   function load() {
     api.myBrandMenu().then((d) => setItems(d.items)).catch((e) => setError(e.message));
@@ -43,12 +44,15 @@ export default function PartnerMenuPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setInfo("");
     try {
       const payload = { ...form, price: Number(form.price), stockQty: Number(form.stockQty || 0) };
       if (editingId) {
-        await api.updateMyBrandMenuItem(editingId, payload);
+        const r = await api.updateMyBrandMenuItem(editingId, payload);
+        setInfo(r.message || "Saved.");
       } else {
         await api.createMyBrandMenuItem(payload);
+        setInfo("Item sent to admin for approval. It goes live for customers once approved.");
       }
       setForm(EMPTY_FORM);
       setEditingId(null);
@@ -68,6 +72,7 @@ export default function PartnerMenuPage() {
       isVeg: item.isVeg,
       stockQty: item.stockQty,
       imageUrl: item.imageUrl || "",
+      soldByWeight: item.soldByWeight,
     });
   }
 
@@ -77,21 +82,41 @@ export default function PartnerMenuPage() {
   }
 
   async function remove(item) {
-    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    const live = item.approvalStatus === "APPROVED";
+    const msg = live
+      ? `Ask admin to remove "${item.name}"? It stays on sale until admin approves.`
+      : `Delete "${item.name}"?`;
+    if (!confirm(msg)) return;
+    setError(""); setInfo("");
     try {
-      await api.deleteMyBrandMenuItem(item.id);
+      const r = await api.deleteMyBrandMenuItem(item.id);
+      if (r.message) setInfo(r.message);
       load();
     } catch (err) {
       setError(err.message);
     }
   }
 
+  async function cancelRequest(item) {
+    setError(""); setInfo("");
+    try { await api.cancelMyBrandRequest(item.id); load(); } catch (err) { setError(err.message); }
+  }
+
+  function statusBadge(item) {
+    if (item.deleteRequested) return <span className="text-[10px] bg-chili/10 text-chili px-1.5 py-0.5 rounded-sm">removal requested</span>;
+    if (item.pendingChanges) return <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-sm">edit awaiting approval</span>;
+    if (item.approvalStatus === "PENDING") return <span className="text-[10px] bg-saffron/15 text-saffron2 px-1.5 py-0.5 rounded-sm">awaiting approval</span>;
+    if (item.approvalStatus === "REJECTED") return <span className="text-[10px] bg-chili/10 text-chili px-1.5 py-0.5 rounded-sm">not approved</span>;
+    return <span className="text-[10px] bg-basil/10 text-basil px-1.5 py-0.5 rounded-sm">live</span>;
+  }
+
   return (
     <PartnerShell>
       <h1 className="font-display text-2xl text-ink mb-1">My Menu</h1>
-      <p className="text-sm text-ink/50 mb-6">Add, edit, and manage your own menu items and combos</p>
+      <p className="text-sm text-ink/50 mb-6">New items, price/photo/name edits and removals are reviewed by admin before customers see them. Stock and availability change instantly.</p>
 
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
+      {info && <p className="text-basil text-sm mb-4">{info}</p>}
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 bg-white border border-line rounded-sm">
@@ -119,8 +144,10 @@ export default function PartnerMenuPage() {
                   <td className="px-4 py-3">
                     {item.name}
                     <span className={`ml-2 inline-block w-2 h-2 rounded-full ${item.isVeg ? "bg-basil" : "bg-chili"}`} />
+                    <div className="mt-1">{statusBadge(item)}</div>
+                    {item.approvalStatus === "REJECTED" && item.approvalNote && <div className="text-xs text-chili mt-1">{item.approvalNote}</div>}
                   </td>
-                  <td className="px-4 py-3 font-mono">₹{item.price}</td>
+                  <td className="px-4 py-3 font-mono">₹{item.price}{item.soldByWeight ? "/kg" : ""}</td>
                   <td className="px-4 py-3 font-mono">{item.stockQty}</td>
                   <td className="px-4 py-3">
                     <button
@@ -132,7 +159,12 @@ export default function PartnerMenuPage() {
                   </td>
                   <td className="px-4 py-3 space-x-2">
                     <button onClick={() => edit(item)} className="text-saffron2 text-xs hover:underline">Edit</button>
-                    <button onClick={() => remove(item)} className="text-chili text-xs hover:underline">Delete</button>
+                    {(item.pendingChanges || item.deleteRequested) && (
+                      <button onClick={() => cancelRequest(item)} className="text-ink/60 text-xs hover:underline">Withdraw request</button>
+                    )}
+                    <button onClick={() => remove(item)} className="text-chili text-xs hover:underline">
+                      {item.approvalStatus === "APPROVED" ? "Request removal" : "Delete"}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -190,6 +222,13 @@ export default function PartnerMenuPage() {
               className="w-1/2 px-3 py-2 border border-line rounded-sm text-sm"
             />
           </div>
+          <label className="flex items-center gap-2 text-sm mb-2">
+            <input
+              type="checkbox" checked={form.soldByWeight}
+              onChange={(e) => setForm({ ...form, soldByWeight: e.target.checked })}
+            />
+            Sold by weight (price is per kg; stock in grams)
+          </label>
           <label className="flex items-center gap-2 text-sm mb-4">
             <input
               type="checkbox" checked={form.isVeg}
@@ -199,7 +238,7 @@ export default function PartnerMenuPage() {
           </label>
           <div className="flex gap-2">
             <button type="submit" className="bg-charcoal text-paper text-sm px-4 py-2 rounded-sm flex-1">
-              {editingId ? "Save changes" : "Add item"}
+              {editingId ? "Save / send for approval" : "Submit for approval"}
             </button>
             {editingId && (
               <button

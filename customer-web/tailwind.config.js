@@ -4,12 +4,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        charcoal: "#1F4D2E",
-        charcoal2: "#6e2e13",
-        paper: "#939290",
+        charcoal: "#1C1B19",
+        charcoal2: "#26241F",
+        paper: "#F7F5F1",
         cream: "#FBF8F2",
-        saffron: "#f79f1b",
-        saffron2: "#ab670d",
+        saffron: "#E8A33D",
+        saffron2: "#C97F1F",
         basil: "#2F5233",
         chili: "#C1443B",
         ink: "#2A2822",

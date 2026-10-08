@@ -14,6 +14,10 @@ router.get("/me/menu", bp.listMyMenu);
 router.post("/me/menu", bp.createMyMenuItem);
 router.put("/me/menu/:id", bp.updateMyMenuItem);
 router.delete("/me/menu/:id", bp.deleteMyMenuItem);
+router.post("/me/menu/:id/cancel-request", bp.cancelMyRequest);
+
+router.get("/me/inventory", bp.myInventory);
+router.patch("/me/inventory/:id", bp.adjustMyStock);
 
 router.get("/me/locations", bp.listMyLocations);
 router.post("/me/locations", bp.createMyLocation);

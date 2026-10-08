@@ -6,7 +6,7 @@ import Shell from "@/components/Shell";
 import { api, API_URL } from "@/lib/api";
 import { APP_NAME } from "@/lib/brand";
 
-const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", brandId: "", soldByWeight: false };
+const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", brandId: "", soldByWeight: false, plannerRole: "", servesPerUnit: "", minOrderGrams: "" };
 
 export default function MenuPage() {
   const [items, setItems] = useState([]);
@@ -77,7 +77,10 @@ export default function MenuPage() {
     e.preventDefault();
     setError("");
     try {
-      const payload = { ...form, price: Number(form.price), stockQty: Number(form.stockQty || 0) };
+      const payload = {
+        ...form, price: Number(form.price), stockQty: Number(form.stockQty || 0),
+        plannerRole: form.plannerRole || null, minOrderGrams: form.minOrderGrams ? Number(form.minOrderGrams) : 1000, servesPerUnit: form.servesPerUnit ? Number(form.servesPerUnit) : 1,
+      };
       if (editingId) {
         await api.updateMenuItem(editingId, payload);
       } else {
@@ -103,6 +106,9 @@ export default function MenuPage() {
       stockQty: item.stockQty,
       imageUrl: item.imageUrl || "",
       soldByWeight: item.soldByWeight || false,
+      plannerRole: item.plannerRole || "",
+      servesPerUnit: item.servesPerUnit && item.servesPerUnit > 1 ? item.servesPerUnit : "",
+      minOrderGrams: item.soldByWeight ? item.minOrderGrams || 1000 : "",
     });
   }
 
@@ -257,12 +263,38 @@ export default function MenuPage() {
               Sold by weight (priced per kg)
             </label>
             {form.soldByWeight && (
-              <p className="text-xs text-ink/40 mb-3 ml-6">
-                Price above will be treated as ₹ per kg. Customers order in grams;
-                a ₹1,000 minimum order value applies automatically.
-              </p>
+              <div className="mb-3 ml-6">
+                <p className="text-xs text-ink/40 mb-2">Price above is ₹ per kg. Customers order in grams.</p>
+                <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Minimum order (grams)</label>
+                <input
+                  type="number" min="100" step="50" value={form.minOrderGrams}
+                  onChange={(e) => setForm({ ...form, minOrderGrams: e.target.value })}
+                  placeholder="1000"
+                  className="w-full px-3 py-2 border border-line rounded-sm text-sm"
+                />
+              </div>
             )}
-            <div className="mb-3" />
+            <div className="mt-3 mb-3 border-t border-line pt-3">
+              <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Party planner role</label>
+              <select
+                value={form.plannerRole} onChange={(e) => setForm({ ...form, plannerRole: e.target.value })}
+                className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+              >
+                <option value="">Not used in the planner</option>
+                <option value="MAIN">Main meal box (also used for weekly plans)</option>
+                <option value="SWEET">Sweet</option>
+                <option value="DRINK">Drink</option>
+              </select>
+              <input
+                type="number" min="1" value={form.servesPerUnit}
+                onChange={(e) => setForm({ ...form, servesPerUnit: e.target.value })}
+                placeholder={form.soldByWeight ? "Guests served per kg (e.g. 8)" : "Guests served per piece (default 1)"}
+                className="w-full px-3 py-2 border border-line rounded-sm text-sm"
+              />
+              <p className="text-xs text-ink/40 mt-1">
+                The app uses this for "feeds about N guests" and to suggest quantities in the party planner.
+              </p>
+            </div>
             <div className="flex gap-2">
               <button type="submit" className="btn-primary text-sm flex-1">
                 {editingId ? "Save changes" : "Add item"}

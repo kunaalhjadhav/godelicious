@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { api } from "@/lib/api";
 
-const EMPTY = { code: "", discountType: "PERCENT", discountValue: "", minOrderAmount: "", maxUses: "", expiresAt: "" };
+const EMPTY = { code: "", discountType: "PERCENT", discountValue: "", minOrderAmount: "", maxUses: "", expiresAt: "", isPublic: false, title: "" };
 
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState([]);
@@ -61,6 +61,7 @@ export default function CouponsPage() {
                 <th className="px-4 py-3">Discount</th>
                 <th className="px-4 py-3">Min order</th>
                 <th className="px-4 py-3">Uses</th>
+                <th className="px-4 py-3">In app</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -76,6 +77,14 @@ export default function CouponsPage() {
                   <td className="px-4 py-3">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
                   <td className="px-4 py-3">
                     <button
+                      onClick={async () => { await api.updateCoupon(c.id, { isPublic: !c.isPublic }); load(); }}
+                      className={`text-xs px-2 py-1 rounded-sm ${c.isPublic ? "bg-saffron/20 text-saffron2" : "bg-line text-ink/50"}`}
+                    >
+                      {c.isPublic ? "Shown" : "Hidden"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
                       onClick={() => toggleActive(c)}
                       className={`text-xs px-2 py-1 rounded-sm ${c.isActive ? "bg-basil/10 text-basil" : "bg-chili/10 text-chili"}`}
                     >
@@ -88,7 +97,7 @@ export default function CouponsPage() {
                 </tr>
               ))}
               {coupons.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-ink/40">No coupons yet.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-ink/40">No coupons yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -125,6 +134,17 @@ export default function CouponsPage() {
             onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
             className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
           />
+          <label className="flex items-center gap-2 text-sm mb-2">
+            <input type="checkbox" checked={form.isPublic} onChange={(e) => setForm({ ...form, isPublic: e.target.checked })} />
+            Show in the app's "Offers for you"
+          </label>
+          {form.isPublic && (
+            <input
+              placeholder="Headline, e.g. 10% off your first order" value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+            />
+          )}
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Expires (optional)</label>
           <input
             type="date" value={form.expiresAt}

@@ -15,7 +15,7 @@ single file that controls all of them.
 ### Customer website
 Replace this file directly (same filename, so nothing else needs to change):
 ```
-customer-web/public/logo.svg
+customer-web/public/logo.png (small mark) and customer-web/public/logo-full.png (full logo)
 ```
 If your new logo is a PNG instead of SVG, save it as `logo.png` and update the one reference to
 it in `customer-web/app/layout.js` and `customer-web/components/Nav.js` (search for `logo.svg`
@@ -24,12 +24,12 @@ and change to `logo.png`).
 ### Admin dashboard
 Same idea:
 ```
-admin-dashboard/public/logo.svg
+admin-dashboard/public/logo.png (small mark) and admin-dashboard/public/logo-full.png
 ```
 
 ### Mobile app (in-app logo, e.g. login screen)
 ```
-customer-app/src/assets/logo.png
+customer-app/src/assets/logo.png (small mark) and customer-app/src/assets/logo-full.png (login screen)
 ```
 Must be a PNG (not SVG — React Native doesn't render SVG natively without an extra library).
 

@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // change to "postgresql" for production
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -25,6 +25,25 @@ enum OrderStatus {
   PREPARING
   OUT_FOR_DELIVERY
   DELIVERED
+  CANCELLED
+}
+
+enum ItemApproval {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
   CANCELLED
 }
 
@@ -92,6 +111,95 @@ model User {
   brandId  String? // set only for role = BRAND_PARTNER; which brand this login manages
   brand    Brand?  @relation(fields: [brandId], references: [id])
   deviceTokens DeviceToken[]
+
+  venue          Venue?
+  venueBookings  VenueBooking[] @relation("CustomerVenueBookings")
+
+  // Rewards & referrals (10 points = Rs 1)
+  loyaltyPoints  Int      @default(0)
+  referralCode   String?  @unique
+  referredById   String?
+  referredBy     User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals      User[]   @relation("Referrals")
+  referralPaid   Boolean  @default(false) // true once the referral bonus has been credited
+
+  favorites      Favorite[]
+  addresses      SavedAddress[]
+  subscriptions  Subscription[]
+  pointLogs      PointLog[]
+}
+
+// One line per change to a customer's reward points (earned, redeemed, bonus).
+model PointLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points    Int      // positive = earned, negative = spent
+  reason    String   // EARN_ORDER | REDEEM | REFUND | REFERRAL_BONUS | WELCOME_BONUS
+  orderId   String?
+  createdAt DateTime @default(now())
+}
+
+// A customer's saved/favourite menu item. notifyWhenBack = tell me when it is available again.
+model Favorite {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuItemId     String
+  menuItem       MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  notifyWhenBack Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, menuItemId])
+}
+
+// Home / Office / Venue style saved delivery addresses
+model SavedAddress {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String   // "Home", "Office", "Venue" or anything the customer types
+  address   String
+  latitude  Float?
+  longitude Float?
+  phone     String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Weekly meal box: a recurring order. A background job turns each delivery day
+// into a normal Order (so the kitchen, admin and WhatsApp alerts all work as usual).
+model Subscription {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuItemId   String
+  menuItem     MenuItem  @relation(fields: [menuItemId], references: [id])
+  boxesPerDay  Int       @default(1)
+  days         String    // JSON array of weekday numbers, 0 = Sunday ... 6 = Saturday
+  timeSlot     String    // e.g. "12:30 PM"
+  address      String
+  latitude     Float?
+  longitude    Float?
+  phone        String
+  status       SubStatus @default(ACTIVE)
+  startDate    DateTime
+  pausedUntil  DateTime?
+  skipDates    String    @default("[]") // JSON array of "YYYY-MM-DD" days to skip
+  discountPct  Float     @default(0)    // locked in when the plan was created
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  orders       Order[]
+}
+
+// Status history for an order, used for the tracking timeline.
+model OrderEvent {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  createdAt DateTime    @default(now())
 }
 
 // Registered device/browser push tokens for Firebase Cloud Messaging. A user
@@ -129,9 +237,18 @@ model MenuItem {
   category     Category @relation(fields: [categoryId], references: [id])
   brandId      String?  // null = house brand (Godelicious itself)
   brand        Brand?   @relation(fields: [brandId], references: [id])
+  approvalStatus  ItemApproval @default(APPROVED) // brand-partner items start PENDING until admin approves
+  approvalNote    String?
+  pendingChanges  String?   // JSON of edits a brand partner proposed to an approved item; applied when admin approves
+  deleteRequested Boolean   @default(false) // brand partner asked for removal; admin confirms
+  lowStockAt      Int       @default(5)
+  servesPerUnit   Int       @default(1)  // guests fed per piece (or per kg when soldByWeight)
+  plannerRole     String?   // MAIN | SWEET | DRINK - used by the party planner and weekly box
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  favorites      Favorite[]
+  subscriptions  Subscription[]
   orderItems     OrderItem[]
   inventoryLogs  InventoryLog[]
   comboGroups    ComboGroup[]
@@ -192,6 +309,13 @@ model Order {
   deliveryPartnerId String?
   deliveryPartner    DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
   forwardedAt        DateTime?        // when this order was sent to the delivery partner via WhatsApp
+
+  deliveryFee      Float         @default(0)
+  pointsUsed       Int           @default(0)
+  pointsDiscount   Float         @default(0)
+  subscriptionId   String?
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
+  events           OrderEvent[]
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -301,6 +425,8 @@ model Coupon {
   usedCount       Int           @default(0)
   isActive        Boolean       @default(true)
   expiresAt       DateTime?
+  isPublic        Boolean       @default(false) // show in the app's "Offers for you" strip
+  title           String?       // e.g. "10% off your first order"
   createdAt       DateTime      @default(now())
 }
 
@@ -375,6 +501,12 @@ model AppSettings {
   minOrderAmount  Float    @default(0)
   codEnabled      Boolean  @default(true)
   staffPricePerPerson  Float @default(0) // charged per staff member requested on a booking
+  adminWhatsapp   String?  // number that receives new-order WhatsApp alerts (with country code, e.g. 919916989185)
+  whatsappAlerts  Boolean  @default(true)
+  deliveryFee     Float    @default(0)   // 0 = delivery is always free
+  freeDeliveryAbove Float  @default(0)   // fee waived when the order is at least this much (0 = no threshold)
+  subscriptionDiscountPct Float @default(8) // weekly meal box saving
+  referralBonusPoints Int  @default(1000) // given to both people on the friend's first delivered order
   updatedAt       DateTime @updatedAt
 }
 
@@ -455,4 +587,78 @@ model BrandSettlement {
   status           SettlementStatus @default(PENDING)
   createdAt        DateTime         @default(now())
   paidAt           DateTime?
+}
+
+
+// ---------- Venue partners ----------
+// A banquet hall / venue listed by a VENUE_PARTNER. Customers browse approved
+// venues and send a booking request for a date; the owner accepts or rejects
+// it from their calendar and sets their own tariffs.
+model Venue {
+  id            String   @id @default(uuid())
+  ownerId       String   @unique
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  address       String
+  city          String?
+  latitude      Float?
+  longitude     Float?
+  capacity      Int      @default(100)
+  contactPhone  String?
+  imageUrl      String?
+  eventTypes    String   @default("[]") // JSON array of strings, e.g. ["Wedding","Birthday"]
+  services      String   @default("[]") // JSON array: other services offered (decoration, DJ, parking...)
+  foodOptions   String   @default("[]") // JSON array: Veg, Non-veg, Jain, Outside catering allowed...
+  isApproved    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  tariffs   VenueTariff[]
+  bookings  VenueBooking[]
+  blocks    VenueBlock[]
+}
+
+// One price line, e.g. "Wedding / Full day / Rs 150000" or "Birthday / Per plate / Rs 450".
+model VenueTariff {
+  id         String   @id @default(uuid())
+  venueId    String
+  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  eventType  String   // matches an entry in Venue.eventTypes, or "Any"
+  label      String   // e.g. "Hall rent - full day", "Veg buffet per plate", "Decoration"
+  kind       String   @default("HALL") // HALL | FOOD | SERVICE
+  unit       String   @default("EVENT") // EVENT | DAY | HOUR | PLATE
+  price      Float
+  isActive   Boolean  @default(true)
+}
+
+model VenueBooking {
+  id          String        @id @default(uuid())
+  venueId     String
+  venue       Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    User          @relation("CustomerVenueBookings", fields: [customerId], references: [id])
+  eventType   String
+  eventDate   DateTime
+  startTime   String?
+  endTime     String?
+  guestCount  Int
+  foodOption  String?
+  services    String        @default("[]") // JSON array of requested services
+  contactPhone String
+  notes       String?
+  quotedAmount Float?       // owner's quote when accepting
+  status      BookingStatus @default(PENDING)
+  ownerNote   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// A date the owner has marked unavailable (private event, maintenance).
+model VenueBlock {
+  id        String   @id @default(uuid())
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  date      DateTime
+  reason    String?
 }

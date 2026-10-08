@@ -1,3 +1,4 @@
+const { checkBackInStock } = require("../services/backInStock.service");
 const prisma = require("../config/db");
 
 // GET /api/inventory (ADMIN/STAFF) - current stock levels for every menu item
@@ -62,6 +63,7 @@ async function adjustStock(req, res) {
       return updated;
     });
 
+    checkBackInStock(result.id);
     res.json({ item: result });
   } catch (err) {
     console.error("adjustStock error:", err.message);

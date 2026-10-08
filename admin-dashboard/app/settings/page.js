@@ -8,6 +8,12 @@ export default function SettingsPage() {
   const [minOrderAmount, setMinOrderAmount] = useState("");
   const [codEnabled, setCodEnabled] = useState(true);
   const [staffPricePerPerson, setStaffPricePerPerson] = useState("");
+  const [adminWhatsapp, setAdminWhatsapp] = useState("");
+  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
+  const [deliveryFee, setDeliveryFee] = useState("0");
+  const [freeDeliveryAbove, setFreeDeliveryAbove] = useState("0");
+  const [subscriptionDiscountPct, setSubscriptionDiscountPct] = useState("8");
+  const [referralBonusPoints, setReferralBonusPoints] = useState("1000");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -17,6 +23,12 @@ export default function SettingsPage() {
       setMinOrderAmount(String(d.settings.minOrderAmount));
       setCodEnabled(d.settings.codEnabled);
       setStaffPricePerPerson(String(d.settings.staffPricePerPerson ?? 0));
+      setAdminWhatsapp(d.settings.adminWhatsapp || "");
+      setWhatsappAlerts(d.settings.whatsappAlerts !== false);
+      setDeliveryFee(String(d.settings.deliveryFee ?? 0));
+      setFreeDeliveryAbove(String(d.settings.freeDeliveryAbove ?? 0));
+      setSubscriptionDiscountPct(String(d.settings.subscriptionDiscountPct ?? 8));
+      setReferralBonusPoints(String(d.settings.referralBonusPoints ?? 1000));
     }).catch((e) => setError(e.message));
   }, []);
 
@@ -26,7 +38,10 @@ export default function SettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson) });
+      await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson), adminWhatsapp, whatsappAlerts,
+        deliveryFee: Number(deliveryFee), freeDeliveryAbove: Number(freeDeliveryAbove),
+        subscriptionDiscountPct: Number(subscriptionDiscountPct), referralBonusPoints: Number(referralBonusPoints),
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -65,6 +80,50 @@ export default function SettingsPage() {
         <p className="text-xs text-ink/40 mb-5 -mt-3">
           Charged per staff member when a customer requests staffing on a Catering/Delivery booking.
         </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Delivery fee (₹)</label>
+        <input
+          type="number" min="0" value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value)}
+          className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Free delivery above (₹)</label>
+        <input
+          type="number" min="0" value={freeDeliveryAbove} onChange={(e) => setFreeDeliveryAbove(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-5">
+          Delivery fee 0 means delivery is always free. If you set a fee, carts at or above the "free delivery" amount
+          pay no fee, and the app shows customers how far they are from it.
+        </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Weekly meal box saving (%)</label>
+        <input
+          type="number" min="0" max="50" value={subscriptionDiscountPct} onChange={(e) => setSubscriptionDiscountPct(e.target.value)}
+          className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Referral reward (points, each side)</label>
+        <input
+          type="number" min="0" value={referralBonusPoints} onChange={(e) => setReferralBonusPoints(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-5">
+          10 points = ₹1. Customers earn 1 point per ₹10 on delivered orders. The referral reward is paid to both
+          people when the friend's first order is delivered (1000 points = ₹100).
+        </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">WhatsApp number for order alerts</label>
+        <input
+          type="tel" placeholder="919916989185" value={adminWhatsapp} onChange={(e) => setAdminWhatsapp(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-3">
+          With country code, digits only (91 + 10-digit number). Every new order is sent here on WhatsApp.
+          Needs the WhatsApp Business API variables set on the backend — see the setup guide.
+        </p>
+        <label className="flex items-center gap-2 text-sm mb-5">
+          <input type="checkbox" checked={whatsappAlerts} onChange={(e) => setWhatsappAlerts(e.target.checked)} />
+          Send WhatsApp alerts
+        </label>
 
         <button
           type="submit" disabled={saving}

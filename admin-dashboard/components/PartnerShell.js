@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { APP_NAME } from "@/lib/brand";
+import AlertSetup from "@/components/AlertSetup";
 
 const NAV = [
   { href: "/partner/dashboard", label: "Dashboard" },
   { href: "/partner/menu", label: "My Menu" },
   { href: "/partner/orders", label: "Orders" },
+  { href: "/partner/history", label: "Order History" },
+  { href: "/partner/inventory", label: "Inventory" },
   { href: "/partner/locations", label: "Locations" },
   { href: "/partner/offers", label: "Offers" },
   { href: "/partner/earnings", label: "Earnings" },
@@ -22,6 +25,7 @@ export default function PartnerShell({ children }) {
 
   useEffect(() => {
     if (!loading && !user) router.replace("/partner/login");
+    else if (!loading && user && user.role === "VENUE_PARTNER") router.replace("/venue/dashboard");
     else if (!loading && user && user.role !== "BRAND_PARTNER") router.replace("/dashboard");
   }, [loading, user, router]);
 
@@ -55,6 +59,7 @@ export default function PartnerShell({ children }) {
           })}
         </nav>
         <div className="px-6 py-4 border-t border-white/10 text-xs">
+          <AlertSetup />
           <div className="text-white/80">{user?.name}</div>
           <div className="text-white/40 mb-2">Brand Partner</div>
           <button onClick={logout} className="text-saffron hover:underline">

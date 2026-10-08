@@ -30,4 +30,15 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+// Like requireAuth but never rejects: attaches req.user when a valid token is
+// present so public routes can show staff extra data (e.g. unapproved items).
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (token) {
+    try { req.user = verifyToken(token); } catch (e) { /* ignore bad token on public routes */ }
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireRole, optionalAuth };

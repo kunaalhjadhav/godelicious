@@ -1,5 +1,7 @@
 const prisma = require("../config/db");
 const { sendPushToUser } = require("../services/push.service");
+const { notifyNewOrder } = require("../services/notify.service");
+const { POINTS_PER_RUPEE, awardForDelivered, refundPointsForCancelled } = require("../services/loyalty.service");
 
 const VALID_STATUSES = [
   "PENDING",
@@ -38,7 +40,7 @@ async function createOrder(req, res) {
   const {
     items, deliveryAddress, contactPhone, notes,
     couponCode, eventDate, eventTime, guestCount, latitude, longitude,
-    paymentMethod, orderTypeId, needsStaff, staffCount, addons,
+    paymentMethod, orderTypeId, needsStaff, staffCount, addons, usePoints,
   } = req.body;
 
   const itemLines = Array.isArray(items) ? items : [];
@@ -81,12 +83,19 @@ async function createOrder(req, res) {
         if (!menuItem) {
           throw new Error(`Menu item ${line.menuItemId} not found.`);
         }
+        if (menuItem.approvalStatus !== "APPROVED") {
+          throw new Error(`${menuItem.name} is not available.`);
+        }
         if (!menuItem.isAvailable) {
           throw new Error(`${menuItem.name} is currently unavailable.`);
         }
         if (menuItem.stockQty < line.quantity) {
           const unit = menuItem.soldByWeight ? "g" : "";
           throw new Error(`Not enough stock for ${menuItem.name}. Available: ${menuItem.stockQty}${unit}.`);
+        }
+
+        if (menuItem.soldByWeight && menuItem.minOrderGrams > 0 && line.quantity < menuItem.minOrderGrams) {
+          throw new Error(`Minimum order for ${menuItem.name} is ${menuItem.minOrderGrams}g.`);
         }
 
         // Weight-sold items are priced per kg — quantity is grams, so the
@@ -177,12 +186,34 @@ async function createOrder(req, res) {
         appliedCouponCode = coupon.code;
       }
 
-      const finalTotal = subtotal - discountAmount;
-      if (finalTotal < settings.minOrderAmount) {
-        throw new Error(`Minimum order amount is ₹${settings.minOrderAmount}. Your order total is ₹${finalTotal.toFixed(0)}.`);
+      const cartValue = subtotal - discountAmount;
+      if (cartValue < settings.minOrderAmount) {
+        throw new Error(`Minimum order amount is ₹${settings.minOrderAmount}. Your order total is ₹${cartValue.toFixed(0)}.`);
       }
 
-      return tx.order.create({
+      // Delivery fee (0 = free). Waived once the cart reaches the free-delivery threshold.
+      let deliveryFee = 0;
+      if (settings.deliveryFee > 0) {
+        const waived = settings.freeDeliveryAbove > 0 && subtotal >= settings.freeDeliveryAbove;
+        deliveryFee = waived ? 0 : settings.deliveryFee;
+      }
+
+      // Reward points: 10 points = Rs 1. Only whole rupees are redeemed.
+      let pointsUsed = 0;
+      let pointsDiscount = 0;
+      if (usePoints) {
+        const me = await tx.user.findUnique({ where: { id: req.user.id }, select: { loyaltyPoints: true } });
+        const maxRupees = Math.floor((me?.loyaltyPoints || 0) / POINTS_PER_RUPEE);
+        pointsDiscount = Math.max(0, Math.min(maxRupees, Math.floor(cartValue + deliveryFee)));
+        pointsUsed = pointsDiscount * POINTS_PER_RUPEE;
+        if (pointsUsed > 0) {
+          await tx.user.update({ where: { id: req.user.id }, data: { loyaltyPoints: { decrement: pointsUsed } } });
+        }
+      }
+
+      const finalTotal = cartValue + deliveryFee - pointsDiscount;
+
+      const created = await tx.order.create({
         data: {
           userId: req.user.id,
           totalAmount: finalTotal,
@@ -202,8 +233,12 @@ async function createOrder(req, res) {
           staffCount: wantsStaff ? numStaff : null,
           staffCost,
           addonsCost,
+          deliveryFee,
+          pointsUsed,
+          pointsDiscount,
           items: { create: orderItemsData },
           addons: { create: orderAddonsData },
+          events: { create: [{ status: "PENDING" }] },
         },
         include: {
           items: { include: { menuItem: true } },
@@ -212,8 +247,14 @@ async function createOrder(req, res) {
           deliveryPartner: true,
         },
       });
+      if (pointsUsed > 0) {
+        await tx.pointLog.create({ data: { userId: req.user.id, points: -pointsUsed, reason: "REDEEM", orderId: created.id } });
+      }
+      return created;
     }, { timeout: 20000, maxWait: 10000 }); // default 5s timeout is too tight for this many
     // sequential checks (stock, combos, coupon, order type, addons) over a pooled connection
+
+    notifyNewOrder(order.id); // fire-and-forget: admin push + WhatsApp, brand partner alerts
 
     res.status(201).json({ order });
   } catch (err) {
@@ -248,6 +289,7 @@ async function getOrder(req, res) {
           deliveryPartner: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       review: true,
+      events: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!order) return res.status(404).json({ error: "Order not found." });
@@ -309,12 +351,23 @@ async function updateOrderStatus(req, res) {
         }
       }
 
+      if (status !== existing.status) {
+        await tx.orderEvent.create({ data: { orderId: existing.id, status } });
+      }
+      if (status === "CANCELLED" && existing.status !== "CANCELLED") {
+        await refundPointsForCancelled(tx, existing);
+      }
+
       return tx.order.update({
         where: { id: req.params.id },
         data: { status },
         include: { items: { include: { menuItem: true } } },
       });
     }, { timeout: 15000, maxWait: 10000 });
+
+    if (status === "DELIVERED") {
+      awardForDelivered(order.id).catch((err) => console.error("Loyalty award failed:", err.message));
+    }
 
     sendPushToUser(order.userId, {
       title: "Order update",

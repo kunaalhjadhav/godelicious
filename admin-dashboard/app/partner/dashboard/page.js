@@ -34,6 +34,17 @@ export default function PartnerDashboardPage() {
             </div>
           )}
 
+          {data.awaitingApproval > 0 && (
+            <div className="bg-saffron/10 border-l-2 border-saffron2 px-4 py-3 mb-4 text-sm">
+              <strong>{data.awaitingApproval}</strong> item request(s) waiting for admin approval — see My Menu.
+            </div>
+          )}
+          {data.lowStock > 0 && (
+            <div className="bg-chili/10 border-l-2 border-chili px-4 py-3 mb-4 text-sm">
+              <strong>{data.lowStock}</strong> item(s) are running low on stock — see Inventory.
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-4 mb-8">
             <div className="bg-white border border-line rounded-sm p-5">
               <div className="text-xs font-mono uppercase text-ink/50 mb-2">Menu items</div>

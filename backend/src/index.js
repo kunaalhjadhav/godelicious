@@ -11,6 +11,8 @@ const usersRoutes = require("./routes/users.routes");
 const menuRoutes = require("./routes/menu.routes");
 const ordersRoutes = require("./routes/orders.routes");
 const venueRoutes = require("./routes/venue.routes");
+const venuesRoutes = require("./routes/venues.routes");
+const approvalsRoutes = require("./routes/approvals.routes");
 const inventoryRoutes = require("./routes/inventory.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const uploadsRoutes = require("./routes/uploads.routes");
@@ -29,6 +31,13 @@ const brandPartnersRoutes = require("./routes/brandPartners.routes");
 const offersRoutes = require("./routes/offers.routes");
 const devicesRoutes = require("./routes/devices.routes");
 const deliveryPartnersRoutes = require("./routes/deliveryPartners.routes");
+const homeRoutes = require("./routes/home.routes");
+const favoritesRoutes = require("./routes/favorites.routes");
+const addressesRoutes = require("./routes/addresses.routes");
+const loyaltyRoutes = require("./routes/loyalty.routes");
+const plannerRoutes = require("./routes/planner.routes");
+const subscriptionsRoutes = require("./routes/subscriptions.routes");
+const { startScheduler } = require("./services/subscription.service");
 
 const app = express();
 
@@ -79,6 +88,7 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth", authLimiter);
 app.use("/api/brand-partners/register", authLimiter);
+app.use("/api/venues/register", authLimiter);
 
 app.use(express.json());
 app.use(morgan("dev"));
@@ -93,6 +103,8 @@ app.use("/api/users", usersRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/venue-enquiries", venueRoutes);
+app.use("/api/venues", venuesRoutes);
+app.use("/api/approvals", approvalsRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/uploads", uploadsRoutes);
@@ -111,6 +123,12 @@ app.use("/api/brand-partners", brandPartnersRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/devices", devicesRoutes);
 app.use("/api/delivery-partners", deliveryPartnersRoutes);
+app.use("/api/home", homeRoutes);
+app.use("/api/favorites", favoritesRoutes);
+app.use("/api/addresses", addressesRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
+app.use("/api/planner", plannerRoutes);
+app.use("/api/subscriptions", subscriptionsRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));
@@ -124,4 +142,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Godelicious backend running on http://localhost:${PORT}`);
+  startScheduler(); // creates the weekly-meal-box orders when their change window closes
 });

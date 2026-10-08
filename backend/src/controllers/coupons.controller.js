@@ -9,7 +9,7 @@ async function listCoupons(req, res) {
 // POST /api/coupons (ADMIN)
 async function createCoupon(req, res) {
   try {
-    const { code, discountType, discountValue, minOrderAmount, maxUses, expiresAt } = req.body;
+    const { code, discountType, discountValue, minOrderAmount, maxUses, expiresAt, isPublic, title } = req.body;
     if (!code || !discountType || discountValue === undefined) {
       return res.status(400).json({ error: "code, discountType and discountValue are required." });
     }
@@ -25,6 +25,8 @@ async function createCoupon(req, res) {
         minOrderAmount: minOrderAmount ? Number(minOrderAmount) : 0,
         maxUses: maxUses ? Number(maxUses) : null,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        isPublic: Boolean(isPublic),
+        title: title ? String(title).trim() : null,
       },
     });
     res.status(201).json({ coupon });
@@ -39,7 +41,7 @@ async function createCoupon(req, res) {
 
 // PATCH /api/coupons/:id (ADMIN) - toggle active, edit
 async function updateCoupon(req, res) {
-  const { isActive, discountValue, minOrderAmount, maxUses, expiresAt } = req.body;
+  const { isActive, discountValue, minOrderAmount, maxUses, expiresAt, isPublic, title } = req.body;
   const coupon = await prisma.coupon.update({
     where: { id: req.params.id },
     data: {
@@ -48,6 +50,8 @@ async function updateCoupon(req, res) {
       ...(minOrderAmount !== undefined && { minOrderAmount: Number(minOrderAmount) }),
       ...(maxUses !== undefined && { maxUses: maxUses === null ? null : Number(maxUses) }),
       ...(expiresAt !== undefined && { expiresAt: expiresAt ? new Date(expiresAt) : null }),
+      ...(isPublic !== undefined && { isPublic: Boolean(isPublic) }),
+      ...(title !== undefined && { title: title ? String(title).trim() : null }),
     },
   });
   res.json({ coupon });

@@ -167,11 +167,15 @@ export default function BookingPage() {
   }, 0);
   const subtotal = staffCost + addonsCost;
   const discount = couponStatus?.discountAmount || 0;
-  const finalTotal = Math.max(0, subtotal - discount);
+  const cartValue = Math.max(0, subtotal - discount);
+  // Delivery fee (0 = free). Same rule the server applies: waived at or above the free-delivery amount.
+  const deliveryFee = settings && settings.deliveryFee > 0 && !(settings.freeDeliveryAbove > 0 && subtotal >= settings.freeDeliveryAbove)
+    ? settings.deliveryFee : 0;
+  const finalTotal = cartValue + deliveryFee;
   // Informational breakdown only — see the same note in checkout/page.js
   const GST_RATE = 0.05;
   const gstAmount = finalTotal - finalTotal / (1 + GST_RATE);
-  const belowMinimum = settings && finalTotal < settings.minOrderAmount && finalTotal > 0;
+  const belowMinimum = settings && cartValue < settings.minOrderAmount && cartValue > 0;
   const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
   async function applyCoupon() {
@@ -485,9 +489,9 @@ export default function BookingPage() {
               <span>GST (5%, included)</span>
               <span>₹{gstAmount.toFixed(0)}</span>
             </div>
-            <div className="flex justify-between text-sm text-basil">
+            <div className={`flex justify-between text-sm ${deliveryFee === 0 ? "text-basil" : "text-ink/70"}`}>
               <span>Delivery</span>
-              <span>Free</span>
+              <span>{deliveryFee === 0 ? "Free" : `₹${deliveryFee}`}</span>
             </div>
             <div className="flex justify-between font-semibold text-ink pt-2 border-t border-line mt-2">
               <span>Total</span>
@@ -497,7 +501,7 @@ export default function BookingPage() {
 
           {belowMinimum && (
             <p className="text-xs text-chili mb-3">
-              Minimum order amount is ₹{settings.minOrderAmount}. Add ₹{(settings.minOrderAmount - finalTotal).toFixed(0)} more (staff/add-ons) to continue.
+              Minimum order amount is ₹{settings.minOrderAmount}. Add ₹{(settings.minOrderAmount - cartValue).toFixed(0)} more (staff/add-ons) to continue.
             </p>
           )}
 

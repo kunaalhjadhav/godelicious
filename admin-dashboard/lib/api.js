@@ -140,6 +140,10 @@ export const api = {
     request(`/api/brands/settlements/${settlementId}`, { method: "PATCH" }),
 
   // Settings
+  listSubscriptions: () => request("/api/subscriptions/admin/all"),
+  setSubscriptionStatus: (id, status) => request(`/api/subscriptions/admin/${id}`, { method: "PATCH", body: { status } }),
+  runSubscriptions: () => request("/api/subscriptions/admin/run", { method: "POST" }),
+
   getSettings: () => request("/api/settings"),
   updateSettings: (payload) => request("/api/settings", { method: "PATCH", body: payload }),
 
@@ -194,4 +198,45 @@ export const api = {
   deleteDeliveryPartner: (id) => request(`/api/delivery-partners/${id}`, { method: "DELETE" }),
   forwardOrderToPartner: (orderId, deliveryPartnerId) =>
     request(`/api/orders/${orderId}/forward`, { method: "PATCH", body: { deliveryPartnerId } }),
+
+  // Push device registration
+  registerDevice: (token, platform = "web") =>
+    request("/api/devices/register", { method: "POST", body: { token, platform } }),
+
+  // Brand partner: inventory, order history, approval requests
+  myBrandInventory: () => request("/api/brand-partners/me/inventory"),
+  adjustMyBrandStock: (id, changeQty, reason) =>
+    request(`/api/brand-partners/me/inventory/${id}`, { method: "PATCH", body: { changeQty, reason } }),
+  myBrandOrdersView: (view = "active", from, to) => {
+    const params = new URLSearchParams({ view });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return request(`/api/brand-partners/me/orders?${params}`);
+  },
+  cancelMyBrandRequest: (id) => request(`/api/brand-partners/me/menu/${id}/cancel-request`, { method: "POST" }),
+
+  // Admin: approvals queue
+  listApprovals: () => request("/api/approvals"),
+  decideApproval: (id, action, note) =>
+    request(`/api/approvals/${id}`, { method: "PATCH", body: { action, note } }),
+
+  // Venue partner portal
+  registerVenuePartner: (payload) => request("/api/venues/register", { method: "POST", body: payload }),
+  myVenueDashboard: () => request("/api/venues/me/dashboard"),
+  myVenue: () => request("/api/venues/me"),
+  updateMyVenue: (payload) => request("/api/venues/me", { method: "PUT", body: payload }),
+  myVenueBookings: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/api/venues/me/bookings${qs ? `?${qs}` : ""}`);
+  },
+  decideVenueBooking: (id, payload) => request(`/api/venues/me/bookings/${id}`, { method: "PATCH", body: payload }),
+  addVenueTariff: (payload) => request("/api/venues/me/tariffs", { method: "POST", body: payload }),
+  updateVenueTariff: (id, payload) => request(`/api/venues/me/tariffs/${id}`, { method: "PATCH", body: payload }),
+  deleteVenueTariff: (id) => request(`/api/venues/me/tariffs/${id}`, { method: "DELETE" }),
+  addVenueBlock: (date, reason) => request("/api/venues/me/blocks", { method: "POST", body: { date, reason } }),
+  removeVenueBlock: (id) => request(`/api/venues/me/blocks/${id}`, { method: "DELETE" }),
+
+  // Admin: venue partners
+  listAllVenues: () => request("/api/venues/admin/all"),
+  updateVenueAdmin: (id, payload) => request(`/api/venues/admin/${id}`, { method: "PATCH", body: payload }),
 };

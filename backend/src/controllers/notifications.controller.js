@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { sendPushToUser } = require("../services/push.service");
 
 // POST /api/notifications (ADMIN) - broadcast to all customers
 async function createNotification(req, res) {
@@ -6,6 +7,14 @@ async function createNotification(req, res) {
   if (!title || !body) return res.status(400).json({ error: "title and body are required." });
 
   const notification = await prisma.notification.create({ data: { title, body } });
+
+  // Also push this to every customer's registered device, so it's not just
+  // sitting silently in the in-app feed — offers/announcements should
+  // actually reach people, not wait for them to open the app.
+  prisma.user.findMany({ where: { role: "CUSTOMER" }, select: { id: true } })
+    .then((customers) => Promise.allSettled(customers.map((c) => sendPushToUser(c.id, { title, body, data: { type: "announcement" } }))))
+    .catch((err) => console.error("Push send failed (broadcast notification):", err.message));
+
   res.status(201).json({ notification });
 }
 

@@ -1,12 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const menu = require("../controllers/menu.controller");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth, requireRole, optionalAuth } = require("../middleware/auth");
 
 // Public - anyone (including the customer app, no auth) can browse the menu
 router.get("/categories", menu.listCategories);
-router.get("/", menu.listMenuItems);
-router.get("/:id", menu.getMenuItem);
+router.get("/", optionalAuth, menu.listMenuItems);
+router.get("/bestsellers", menu.bestsellers); // must stay above "/:id"
+router.get("/:id/reviews", menu.itemReviews);
+router.get("/:id", optionalAuth, menu.getMenuItem);
 
 // Admin-only management
 router.post("/categories", requireAuth, requireRole("ADMIN"), menu.createCategory);
