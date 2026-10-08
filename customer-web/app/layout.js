@@ -1,11 +1,6 @@
-import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
-
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", weight: ["500", "600", "700"] });
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "500"] });
 
 export const metadata = {
   title: `${APP_NAME} — ${APP_TAGLINE}`,
@@ -15,7 +10,15 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${fraunces.variable} ${inter.variable} ${mono.variable} font-body`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap"
+        />
+      </head>
+      <body className="font-body">
         <Providers>{children}</Providers>
       </body>
     </html>
