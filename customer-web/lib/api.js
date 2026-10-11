@@ -78,6 +78,7 @@ export const api = {
   sendMessage: (body) => request("/api/chat/my", { method: "POST", body: { body } }),
 
   // OTP login
+  checkPhone: (phone) => request("/api/auth/otp/check-phone", { method: "POST", body: { phone } }),
   requestOtp: (phone) => request("/api/auth/otp/request", { method: "POST", body: { phone } }),
   verifyOtp: (phone, code, name) =>
     request("/api/auth/otp/verify", { method: "POST", body: { phone, code, name } }),
