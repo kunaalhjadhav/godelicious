@@ -61,8 +61,31 @@ case you ever need to compare or rebuild from scratch.)
 
 ```bash
 cd GodeliciousApp
-npm install @react-native-async-storage/async-storage @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-safe-area-context react-native-screens @react-native-community/datetimepicker @react-native-community/geolocation react-native-webview react-native-razorpay
+npm install @react-native-async-storage/async-storage@1.23.1 @react-navigation/native@6.1.18 @react-navigation/native-stack@6.11.0 @react-navigation/bottom-tabs@6.6.1 react-native-safe-area-context react-native-screens@3.34.0 @react-native-community/datetimepicker @react-native-community/geolocation react-native-webview react-native-razorpay
 ```
+
+**Every version pin above is load-bearing, not optional** — they're a matched set:
+- `react-native-screens@3.34.0` avoids a codegen bug in newer 3.x releases (see below)
+- The `@react-navigation/*` packages are pinned to 6.x because React Navigation 7.x requires
+  `react-native-screens >= 4.0.0`, which directly conflicts with the pin above. Installing any of
+  these without a version number lets npm grab the current latest, which as of whenever you're
+  reading this will likely be React Navigation 7.x — do not do that, it will fail to install with
+  an `ERESOLVE` peer dependency conflict.
+- `@react-native-async-storage/async-storage@1.23.1` avoids a Kotlin/KSP toolchain mismatch:
+  newer 2.x releases of this library require Kotlin 2.1.0+, but RN 0.75.4's default project
+  template ships with Kotlin 1.9.24. Installing the newer async-storage without upgrading the
+  whole project's Kotlin version (a much bigger, riskier change touching every native module)
+  fails at the `:react-native-async-storage_async-storage:kspDebugKotlin` task with an
+  obscure `NoSuchMethodError`-style failure. 1.23.1 predates the KSP requirement entirely.
+
+If you ever see an `ERESOLVE` error mentioning `react-native-screens` and `@react-navigation`
+disagreeing on a version requirement, or a `kspDebugKotlin` failure, this is why — check
+`package.json` and re-pin to the exact versions above.
+
+**Separately**, newer 3.x releases of `react-native-screens` (past 3.34.0) introduce a native prop
+type (`accessibilityContainerViewIsModal`) that RN 0.75.4's code generator can't parse, causing a
+build failure at the `:react-native-screens:generateCodegenSchemaFromJavaScript` task — another
+reason that specific version is pinned.
 
 Android autolinks these automatically with RN 0.75+ — no manual native edits needed for most of
 them. **Two exceptions:**
@@ -82,13 +105,31 @@ if you build for iOS later.
 ### Step 3b — Razorpay native setup (Android)
 
 `react-native-razorpay` autolinks, but Razorpay's own native SDK needs one addition to
-`android/app/build.gradle` — inside the `dependencies { ... }` block, add:
+`android/app/build.gradle` — **not** the root `android/build.gradle`, they're two different files
+with two different jobs, and `implementation` only works in the `app` one — inside its
+`dependencies { ... }` block, add:
 ```groovy
 implementation 'com.razorpay:checkout:1.6.33'
 ```
 (check [Razorpay's Android SDK docs](https://razorpay.com/docs/payments/payment-gateway/android-integration/standard/) for the current recommended version if this one has been superseded by
 the time you build). Without this, the app will crash immediately when `RazorpayCheckout.open()`
 is called, with a `ClassNotFoundException` for Razorpay's checkout activity.
+
+### Step 3c — Raise minSdkVersion (Android)
+
+`react-native-webview` (used for the banner video carousel) requires a higher minimum Android
+version than RN 0.75.4's default template ships with. Open `android/build.gradle`, find the
+`ext { ... }` block near the top, and change:
+```groovy
+minSdkVersion = 23
+```
+to:
+```groovy
+minSdkVersion = 24
+```
+Without this, the build fails at `:app:processDebugMainManifest` with a manifest merger error.
+Practically, this just means the app requires Android 7.0 (2016) or newer — a negligible
+restriction for any phone in active use today.
 
 ---
 

@@ -117,3 +117,67 @@ APK: `android\app\build\outputs\apk\release\app-release.apk`
 - This was syntax-checked and the logic tested with sample data, but not run against a real database or built into an APK here — do a test order, a test weekly box and a test referral before launch.
 
 **Update:** minimum grams per weight item is now enforced (set it per item in Menu → "Minimum order (g)"; default 1000 g). The app starts at that amount and the server rejects smaller orders. If you want 500 g allowed on an item, set its minimum to 500.
+
+
+---
+
+# Part 5 — GST on top, meal boxes, banners, edit/delete, new logo
+
+## What changed
+- **GST 5% is added on top** of the bill (after any coupon). It is not included in item prices. It is not charged on delivery. The percentage can be changed in Admin → Settings.
+- **Coupons** work when the cart subtotal is ₹1000 or more (Settings → coupon minimum). If the discount takes the amount below ₹1000, checkout still works: GST is added and the customer pays.
+- **Meal boxes**: build them in Admin → Meal Boxes (pick dishes, add a photo). Customers see each dish's photo and name in rows after the description. A minimum of **10 meals** per order is needed, and customers can mix boxes (Settings → meal box minimum).
+- **Banners** uploaded in Admin now show in the app and website. Images are stored in the database, so they survive deploys. **Old banners and photos uploaded before this update must be uploaded again once.**
+- **Menu items and categories** can be edited and deleted. An item that has past orders is hidden (archived) rather than erased. A category that has dishes asks where to move them.
+- New logo (green lotus) in admin, website, app launcher (Android and iOS icon sets).
+
+## 1. Copy the files (PowerShell)
+Unzip `godelicious-project.zip` to a folder, e.g. `D:\godelicious-new`. Then copy over your project without touching your OTP login files:
+
+```powershell
+robocopy "D:\godelicious-new\godelicious" "D:\godelicious-project\godelicious" /E /XD node_modules .next .git /XF otp.controller.js auth.routes.js OtpForm.js
+```
+
+The zip does not contain your OTP login files (login page, register page, lib/api.js, OtpForm.js, otp.controller.js, auth.routes.js), so yours stay as they are.
+
+Copy the app too:
+```powershell
+robocopy "D:\godelicious-new\godelicious\customer-app" "D:\godelicious-project\GodeliciousApp" /E /XD node_modules
+```
+App icons: copy `android-resources\res` into `GodeliciousApp\android\app\src\main\res` and `ios-resources\AppIcon.appiconset` into `ios\GodeliciousApp\Images.xcassets\`.
+
+## 2. Database and Railway
+```powershell
+cd D:\godelicious-project\godelicious\backend
+npx prisma migrate dev --name meal_boxes_gst
+cd ..
+git add .
+git commit -m "GST, meal boxes, banners, edit/delete, logo"
+git push
+```
+In Railway, open both services (backend, admin, website) → Deployments and confirm the newest one is green. The bottom of the admin sidebar and the website footer show a build stamp **2026-10-18.1**. If you do not see it, that service did not redeploy: check its Root Directory (admin-dashboard / customer-web / backend) and press Redeploy.
+
+## 3. Admin steps (once)
+1. Settings: check GST %, coupon minimum (1000), meal-box minimum (10), minimum order.
+2. Meal Boxes: create your boxes.
+3. Banners: upload them again.
+4. Menu: try editing a dish and deleting a test dish.
+
+## 4. Rebuild
+Admin and website rebuild on Railway automatically. For the app: `cd D:\godelicious-project\GodeliciousApp; npm install; cd android; .\gradlew assembleRelease`. For iOS, push to GitHub and run Codemagic.
+
+## 5. Things to know
+- The "Meal Box" tile on the home screen now opens the meal-box list instead of the booking form.
+- The 10-meal minimum is across all boxes in the cart, and it is enforced by the server too.
+- The website now matches the app for the home screen, meal boxes, GST, a phone tab bar and the logo. The website does not yet have the Planner, Weekly Box, Favourites and Addresses pages that the app has.
+- Nothing was tested against a live database or a real phone; please test one order end to end (with and without a coupon) after deploying.
+- Kannada wording needs a native speaker to check.
+
+
+## 6. Delivery area (20 km)
+Orders are accepted only when the delivery location is within **20 km** of the centre point. The centre is set to Vijayanagar 4th Stage, Mysuru (12.322983, 76.5878328), which is what Google Maps gives for that area, so it can be a little off your exact house. For the exact spot: in Google Maps right-click your house, click the two numbers shown, then paste them in **Admin → Settings → Latitude / Longitude** and Save. The radius and an on/off switch are there too.
+
+- Outside the area, customers see "Service not available to this area yet. Coming shortly. Thank you." in the app and website, and the server refuses the order.
+- Customers must pick a location (current location or on the map) so the distance can be checked. A typed address alone is not enough.
+- Run the migration again (`npx prisma migrate dev --name service_area`), then push.
+- Weekly box subscriptions are not covered by this check yet.

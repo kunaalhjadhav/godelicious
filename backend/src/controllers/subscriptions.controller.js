@@ -6,7 +6,12 @@ const { istYmd, addDaysYmd, dateFromYmd } = require("../utils/ist");
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
-function shape(sub, now = new Date()) {
+async function gstOf() {
+  const s = await prisma.appSettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
+  return s.gstPercent;
+}
+
+function shape(sub, now = new Date(), gstPercent = 5) {
   const days = parseJson(sub.days, []);
   return {
     id: sub.id, status: sub.status, boxesPerDay: sub.boxesPerDay, days, timeSlot: sub.timeSlot,
@@ -15,7 +20,7 @@ function shape(sub, now = new Date()) {
     menuItem: sub.menuItem ? {
       id: sub.menuItem.id, name: sub.menuItem.name, price: sub.menuItem.price, imageUrl: sub.menuItem.imageUrl, isVeg: sub.menuItem.isVeg,
     } : undefined,
-    weekly: sub.menuItem ? weeklyQuote(sub.menuItem.price, sub.boxesPerDay, days.length, sub.discountPct) : undefined,
+    weekly: sub.menuItem ? weeklyQuote(sub.menuItem.price, sub.boxesPerDay, days.length, sub.discountPct, gstPercent) : undefined,
     upcoming: upcomingDates(sub, 6, now),
   };
 }
@@ -30,7 +35,7 @@ async function plans(req, res) {
     }),
     prisma.appSettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } }),
   ]);
-  res.json({ items, discountPct: settings.subscriptionDiscountPct, slots: SLOTS, firstDelivery: addDaysYmd(istYmd(), 1) });
+  res.json({ items, discountPct: settings.subscriptionDiscountPct, gstPercent: settings.gstPercent, slots: SLOTS, firstDelivery: addDaysYmd(istYmd(), 1) });
 }
 
 // POST /api/subscriptions
@@ -68,7 +73,7 @@ async function create(req, res) {
     },
     include: { menuItem: true },
   });
-  res.status(201).json({ subscription: shape(sub) });
+  res.status(201).json({ subscription: shape(sub, new Date(), settings.gstPercent) });
 }
 
 // GET /api/subscriptions/my
@@ -77,7 +82,8 @@ async function mine(req, res) {
     where: { userId: req.user.id, status: { not: "CANCELLED" } },
     include: { menuItem: true }, orderBy: { createdAt: "desc" },
   });
-  res.json({ subscriptions: subs.map((s) => shape(s)) });
+  const g = await gstOf();
+  res.json({ subscriptions: subs.map((s) => shape(s, new Date(), g)) });
 }
 
 async function ownSub(req) {
@@ -115,7 +121,7 @@ async function update(req, res) {
   if (b.phone !== undefined && String(b.phone).trim()) data.phone = String(b.phone).trim();
 
   const updated = await prisma.subscription.update({ where: { id: sub.id }, data, include: { menuItem: true } });
-  res.json({ subscription: shape(updated) });
+  res.json({ subscription: shape(updated, new Date(), await gstOf()) });
 }
 
 // POST /api/subscriptions/:id/skip { date }   |   DELETE /api/subscriptions/:id/skip/:date
@@ -132,7 +138,7 @@ async function setSkip(req, res, skip) {
   const updated = await prisma.subscription.update({
     where: { id: sub.id }, data: { skipDates: JSON.stringify([...skips].sort()) }, include: { menuItem: true },
   });
-  res.json({ subscription: shape(updated) });
+  res.json({ subscription: shape(updated, new Date(), await gstOf()) });
 }
 const skip = (req, res) => setSkip(req, res, true);
 const unskip = (req, res) => setSkip(req, res, false);
@@ -145,8 +151,9 @@ async function adminAll(req, res) {
     include: { menuItem: true, user: { select: { id: true, name: true, phone: true, email: true } } },
     orderBy: { createdAt: "desc" },
   });
+  const g = await gstOf();
   res.json({
-    subscriptions: subs.map((s) => ({ ...shape(s), user: s.user })),
+    subscriptions: subs.map((s) => ({ ...shape(s, new Date(), g), user: s.user })),
   });
 }
 
@@ -157,7 +164,7 @@ async function adminSetStatus(req, res) {
   const sub = await prisma.subscription.update({
     where: { id: req.params.id }, data: { status, pausedUntil: null }, include: { menuItem: true },
   });
-  res.json({ subscription: shape(sub) });
+  res.json({ subscription: shape(sub, new Date(), await gstOf()) });
 }
 
 // POST /api/subscriptions/admin/run - create due orders right now instead of waiting for the timer

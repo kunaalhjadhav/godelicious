@@ -43,7 +43,7 @@ async function awardForDelivered(orderId) {
   const already = await prisma.pointLog.findFirst({ where: { orderId, reason: "EARN_ORDER" } });
   if (already) return;
 
-  const earned = Math.floor(order.totalAmount / EARN_RUPEES_PER_POINT);
+  const earned = Math.floor(Math.max(0, order.totalAmount - (order.gstAmount || 0)) / EARN_RUPEES_PER_POINT); // GST does not earn points
   if (earned > 0) {
     await prisma.$transaction([
       prisma.user.update({ where: { id: order.userId }, data: { loyaltyPoints: { increment: earned } } }),

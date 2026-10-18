@@ -33,7 +33,7 @@ export default function VenueRegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-charcoal px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <img src="/logo.png" alt="" className="w-14 h-14 rounded-xl mx-auto mb-3" />
+          <img src="/logo.png?v=3" alt="Godelicious" className="w-20 h-20 rounded-2xl mx-auto mb-3 ring-1 ring-white/20" />
           <div className="font-display text-2xl text-paper tracking-tight">List your venue on {APP_NAME}</div>
         </div>
         <form onSubmit={handleSubmit} className="bg-paper rounded-sm p-7 shadow-xl">

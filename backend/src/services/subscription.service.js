@@ -2,6 +2,7 @@ const prisma = require("../config/db");
 const { sendPushToUser } = require("./push.service");
 const { notifyNewOrder } = require("./notify.service");
 const { istYmd, dateFromYmd, addDaysYmd, weekdayOfYmd, parseSlotMinutes } = require("../utils/ist");
+const { computeTotals } = require("../utils/pricing");
 
 const CHANGE_CUTOFF_HOURS = 6; // changes allowed until 6 PM (IST) the day before a delivery
 
@@ -21,13 +22,12 @@ function deliveryInstant(ymd, slot) {
   return new Date(dateFromYmd(ymd).getTime() + mins * 60000);
 }
 
-// Price of one week. Prices include GST (same as the rest of the app), so GST is shown, not added.
-function weeklyQuote(price, boxesPerDay, daysPerWeek, discountPct) {
+// Price of one week. Prices do not include GST: GST is added on top of the price after the weekly saving.
+function weeklyQuote(price, boxesPerDay, daysPerWeek, discountPct, gstPercent = 5) {
   const gross = price * boxesPerDay * daysPerWeek;
   const saving = Math.round((gross * discountPct) / 100);
-  const total = gross - saving;
-  const gstIncluded = Math.round(total - total / 1.05);
-  return { gross, saving, total, gstIncluded };
+  const t = computeTotals({ subtotal: gross, discount: saving, gstPercent });
+  return { gross, saving, subtotal: t.taxable, gst: t.gst, gstPercent, total: t.total };
 }
 
 // Next delivery dates a subscription will produce (for showing in the app).
@@ -69,15 +69,18 @@ async function createOrderFor(sub, ymd) {
     return null;
   }
 
+  const settings = await prisma.appSettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
   const gross = item.price * sub.boxesPerDay;
   const discount = Math.round((gross * sub.discountPct) / 100);
+  const totals = computeTotals({ subtotal: gross, discount, gstPercent: settings.gstPercent });
 
   const order = await prisma.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
         userId: sub.userId,
-        totalAmount: gross - discount,
-        discountAmount: discount,
+        totalAmount: totals.total,
+        gstAmount: totals.gst,
+        discountAmount: totals.discount,
         deliveryAddress: sub.address,
         latitude: sub.latitude,
         longitude: sub.longitude,

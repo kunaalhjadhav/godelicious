@@ -14,6 +14,13 @@ export default function SettingsPage() {
   const [freeDeliveryAbove, setFreeDeliveryAbove] = useState("0");
   const [subscriptionDiscountPct, setSubscriptionDiscountPct] = useState("8");
   const [referralBonusPoints, setReferralBonusPoints] = useState("1000");
+  const [gstPercent, setGstPercent] = useState("5");
+  const [couponMinOrder, setCouponMinOrder] = useState("1000");
+  const [mealBoxMinQty, setMealBoxMinQty] = useState("10");
+  const [serviceAreaOn, setServiceAreaOn] = useState(true);
+  const [serviceLat, setServiceLat] = useState("12.322983");
+  const [serviceLng, setServiceLng] = useState("76.5878328");
+  const [serviceRadiusKm, setServiceRadiusKm] = useState("20");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,6 +36,13 @@ export default function SettingsPage() {
       setFreeDeliveryAbove(String(d.settings.freeDeliveryAbove ?? 0));
       setSubscriptionDiscountPct(String(d.settings.subscriptionDiscountPct ?? 8));
       setReferralBonusPoints(String(d.settings.referralBonusPoints ?? 1000));
+      setGstPercent(String(d.settings.gstPercent ?? 5));
+      setCouponMinOrder(String(d.settings.couponMinOrder ?? 1000));
+      setMealBoxMinQty(String(d.settings.mealBoxMinQty ?? 10));
+      setServiceAreaOn(d.settings.serviceAreaOn ?? true);
+      setServiceLat(String(d.settings.serviceLat ?? 12.322983));
+      setServiceLng(String(d.settings.serviceLng ?? 76.5878328));
+      setServiceRadiusKm(String(d.settings.serviceRadiusKm ?? 20));
     }).catch((e) => setError(e.message));
   }, []);
 
@@ -41,6 +55,8 @@ export default function SettingsPage() {
       await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson), adminWhatsapp, whatsappAlerts,
         deliveryFee: Number(deliveryFee), freeDeliveryAbove: Number(freeDeliveryAbove),
         subscriptionDiscountPct: Number(subscriptionDiscountPct), referralBonusPoints: Number(referralBonusPoints),
+        gstPercent: Number(gstPercent), couponMinOrder: Number(couponMinOrder), mealBoxMinQty: Number(mealBoxMinQty),
+        serviceAreaOn, serviceLat: Number(serviceLat), serviceLng: Number(serviceLng), serviceRadiusKm: Number(serviceRadiusKm),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -64,7 +80,62 @@ export default function SettingsPage() {
           type="number" value={minOrderAmount} onChange={(e) => setMinOrderAmount(e.target.value)}
           className="w-full mb-4 px-3 py-2 border border-line rounded-sm text-sm"
         />
-        <p className="text-xs text-ink/40 mb-4 -mt-3">Orders below this total will be rejected at checkout. Set to 0 for no minimum.</p>
+        <p className="text-xs text-ink/40 mb-4 -mt-3">
+          Checked on the cart <strong>before</strong> any coupon discount and before GST, so a coupon never blocks checkout.
+          Set to 0 for no minimum.
+        </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">GST added at checkout (%)</label>
+        <input
+          type="number" min="0" max="28" step="any" value={gstPercent} onChange={(e) => setGstPercent(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-4">
+          Added on top of the item prices, after the coupon discount (5 = 5%). Menu prices you enter should be <strong>without</strong> GST.
+        </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Coupons work when the cart is at least (₹)</label>
+        <input
+          type="number" min="0" value={couponMinOrder} onChange={(e) => setCouponMinOrder(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-4">
+          Measured before the discount. After the coupon is applied the order can go below this amount and still be placed.
+          A coupon's own minimum (under Coupons) can be higher, never lower.
+        </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Meal boxes: minimum meals per order</label>
+        <input
+          type="number" min="1" value={mealBoxMinQty} onChange={(e) => setMealBoxMinQty(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-5">
+          Counted across all meal boxes in the cart, so a customer can mix boxes (for example 6 + 4 = 10).
+        </p>
+
+        <label className="flex items-center gap-2 text-sm mb-1">
+          <input type="checkbox" checked={serviceAreaOn} onChange={(e) => setServiceAreaOn(e.target.checked)} />
+          Only deliver inside the service area
+        </label>
+        <div className="grid grid-cols-3 gap-2 mb-1">
+          <div>
+            <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Latitude</label>
+            <input type="number" step="any" value={serviceLat} onChange={(e) => setServiceLat(e.target.value)} className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Longitude</label>
+            <input type="number" step="any" value={serviceLng} onChange={(e) => setServiceLng(e.target.value)} className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Radius (km)</label>
+            <input type="number" min="1" step="any" value={serviceRadiusKm} onChange={(e) => setServiceRadiusKm(e.target.value)} className="w-full px-3 py-2 border border-line rounded-sm text-sm" />
+          </div>
+        </div>
+        <p className="text-xs text-ink/40 mb-5">
+          Orders are accepted only if the delivery location is within this radius of the centre point. Outside it, customers see
+          "Service not available to this area yet. Coming shortly. Thank you." The centre is set to Vijayanagar 4th Stage, Mysuru;
+          to use your exact house, right-click it in Google Maps and click the numbers to copy latitude and longitude.
+        </p>
 
         <label className="flex items-center gap-2 text-sm mb-1">
           <input type="checkbox" checked={codEnabled} onChange={(e) => setCodEnabled(e.target.checked)} />

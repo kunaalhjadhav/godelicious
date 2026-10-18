@@ -10,6 +10,7 @@ import OrderTypesSection from "@/components/OrderTypesSection";
 import ComboPickerModal from "@/components/ComboPickerModal";
 import { api, API_URL } from "@/lib/api";
 import { useCart } from "@/lib/useCart";
+import { api2 } from "@/lib/api2";
 
 function resolveImageUrl(url) {
   if (!url) return null;
@@ -36,10 +37,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [comboItem, setComboItem] = useState(null);
   const { addItem } = useCart();
+  const [mealBoxes, setMealBoxes] = useState(null);
   const router = useRouter();
 
   function handleAddClick(item) {
-    if (item.soldByWeight) {
+    if (item.soldByWeight || item.isMealBox) {
       router.push(`/menu/${item.id}`);
     } else if (item.isCombo && item.comboGroups?.length > 0) {
       setComboItem(item);
@@ -52,6 +54,10 @@ export default function HomePage() {
     addItem(comboItem, selectedOptions);
     setComboItem(null);
   }
+
+  useEffect(() => {
+    api2.listMealBoxes().then(setMealBoxes).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.listCategories().then((d) => setCategories(d.categories)).catch(() => {});
@@ -72,6 +78,31 @@ export default function HomePage() {
       <BannerCarousel />
 
       <OrderTypesSection />
+
+      {mealBoxes?.boxes?.length > 0 && (
+        <section className="max-w-5xl mx-auto px-5 pt-6">
+          <div className="flex items-baseline justify-between mb-1">
+            <h2 className="font-display text-xl text-ink">Meal boxes</h2>
+            <Link href="/meal-boxes" className="text-sm text-saffron2 hover:underline">See all</Link>
+          </div>
+          <p className="text-xs text-ink/50 mb-3">Order at least {mealBoxes.minQty || 10} meals, mix any boxes</p>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {mealBoxes.boxes.map((b) => (
+              <Link key={b.id} href={`/menu/${b.id}`} className="shrink-0 w-44 bg-white border border-line rounded-sm overflow-hidden">
+                {b.imageUrl ? (
+                  <img src={resolveImageUrl(b.imageUrl)} alt={b.name} className="w-full h-24 object-cover" />
+                ) : (
+                  <div className="w-full h-24 bg-line" />
+                )}
+                <div className="p-2.5">
+                  <div className="text-sm font-semibold text-ink truncate">{b.name}</div>
+                  <div className="text-xs text-saffron2">₹{b.price} + GST · {b.mealBoxItems?.length || 0} dishes</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Menu */}
       <section id="menu" className="max-w-5xl mx-auto px-5 py-10">
@@ -151,12 +182,13 @@ export default function HomePage() {
                   <div className="mt-auto flex items-center justify-between pt-2">
                     <span className="font-mono font-medium text-ink">
                       ₹{item.price}{item.soldByWeight ? " / kg" : ""}
+                      <span className="text-[10px] text-ink/50 font-sans"> + GST</span>
                     </span>
                     <button
                       onClick={() => handleAddClick(item)}
                       className="btn-accent text-xs inline-flex items-center gap-1"
                     >
-                      <Plus size={13} /> {item.isCombo || item.soldByWeight ? "Customize" : "Add"}
+                      <Plus size={13} /> {item.isCombo || item.soldByWeight || item.isMealBox ? "Customize" : "Add"}
                     </button>
                   </div>
                 </div>

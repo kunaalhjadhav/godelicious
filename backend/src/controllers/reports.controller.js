@@ -64,10 +64,11 @@ async function exportSalesCsv(req, res) {
 
   const headers = [
     "Order ID", "Date", "Customer", "Email", "Status", "Payment Method", "Payment Status",
-    "Items", "Subtotal Before Discount", "Discount", "Total", "Coupon",
+    "Items", "Subtotal Before Discount", "Discount", "GST", "Total (incl. GST)", "Coupon",
   ];
   const rows = orders.map((o) => {
-    const subtotalBefore = o.totalAmount + o.discountAmount;
+    // total = (subtotal - discount) + GST + delivery - points, so the cart value before discount is:
+    const subtotalBefore = o.totalAmount - (o.gstAmount || 0) - (o.deliveryFee || 0) + (o.pointsDiscount || 0) + o.discountAmount;
     return [
       o.id,
       o.createdAt.toISOString(),
@@ -79,6 +80,7 @@ async function exportSalesCsv(req, res) {
       o.items.reduce((sum, i) => sum + i.quantity, 0),
       subtotalBefore.toFixed(2),
       o.discountAmount.toFixed(2),
+      (o.gstAmount || 0).toFixed(2),
       o.totalAmount.toFixed(2),
       o.couponCode || "",
     ];

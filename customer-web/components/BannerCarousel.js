@@ -50,7 +50,7 @@ export default function BannerCarousel() {
       onClick={handleTap}
     >
       {banner.mediaType === "IMAGE" ? (
-        <img src={resolveUrl(banner.mediaUrl)} alt={banner.title || ""} className="w-full h-full object-cover" />
+        <img src={resolveUrl(banner.mediaUrl)} alt={banner.title || ""} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
       ) : (
         <video
           key={banner.id}

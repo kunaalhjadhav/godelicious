@@ -28,7 +28,7 @@ async function suggest(req, res) {
 
   const [items, rank, settings] = await Promise.all([
     prisma.menuItem.findMany({
-      where: { plannerRole: { not: null }, approvalStatus: "APPROVED", isAvailable: true },
+      where: { plannerRole: { not: null }, approvalStatus: "APPROVED", isAvailable: true, isArchived: false },
       include: { comboGroups: { include: { options: true } }, brand: true },
     }),
     salesRank(),
@@ -100,8 +100,10 @@ async function suggest(req, res) {
     : null;
 
   const total = lines.reduce((s, l) => s + l.lineTotal, 0) + (staff?.total || 0);
+  const gstPercent = settings?.gstPercent ?? 5;
+  const gst = Math.round(total * gstPercent) / 100; // GST is added on top of the prices
   res.json({
-    guests, foodStyle: style, occasion, lines, staff, total,
+    guests, foodStyle: style, occasion, lines, staff, total, gstPercent, gst, payable: Math.round((total + gst) * 100) / 100,
     note: lines.length === 0
       ? "No products are set up for the planner yet. Ask the shop to tag a meal box, a sweet and a drink."
       : null,

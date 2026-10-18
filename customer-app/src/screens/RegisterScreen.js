@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: colors.paper, padding: spacing.lg, justifyContent: "center" },
   title: { fontSize: 24, fontWeight: "700", color: colors.ink, marginBottom: spacing.lg, textAlign: "center" },
   label: { fontSize: 12, color: colors.inkFaint, marginBottom: 4, marginTop: spacing.sm, textTransform: "uppercase" },
-  input: { borderWidth: 1, borderColor: colors.line, borderRadius: 4, padding: 10, backgroundColor: colors.white, fontSize: 15 },
+  input: { borderWidth: 1, borderColor: colors.line, borderRadius: 4, padding: 10, backgroundColor: colors.white, fontSize: 15, color: colors.ink },
   button: { backgroundColor: colors.charcoal, borderRadius: 4, padding: 14, alignItems: "center", marginTop: spacing.lg },
   buttonText: { color: colors.paper, fontWeight: "600", fontSize: 15 },
   link: { color: colors.saffron2, textAlign: "center", fontSize: 14 },

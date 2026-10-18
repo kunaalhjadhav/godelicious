@@ -18,6 +18,8 @@ export default function CategoriesPage() {
   const [editingName, setEditingName] = useState("");
   const [editingImageUrl, setEditingImageUrl] = useState("");
   const [error, setError] = useState("");
+  const [moveFor, setMoveFor] = useState(null); // { cat, count } while asking where to move a category's items
+  const [moveTo, setMoveTo] = useState("");
 
   function load() {
     api.listCategories().then((d) => setCategories(d.categories)).catch((e) => setError(e.message));
@@ -71,14 +73,38 @@ export default function CategoriesPage() {
   }
 
   async function move(cat, direction) {
-    await api.updateCategory(cat.id, { sortOrder: (cat.sortOrder || 0) + direction });
-    load();
+    setError("");
+    try {
+      await api.updateCategory(cat.id, { sortOrder: (cat.sortOrder || 0) + direction });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function remove(cat) {
-    if (!confirm(`Delete "${cat.name}"? Menu items in this category will need to be reassigned.`)) return;
+    if (!confirm(`Delete the category "${cat.name}"?`)) return;
+    setError("");
     try {
       await api.deleteCategory(cat.id);
+      load();
+    } catch (err) {
+      // The category still has dishes: ask where they should go instead of failing
+      if (err.itemCount) {
+        setMoveFor({ cat, count: err.itemCount });
+        setMoveTo("");
+      } else {
+        setError(err.message);
+      }
+    }
+  }
+
+  async function confirmMove() {
+    if (!moveTo) { setError("Choose the category the items should move to."); return; }
+    setError("");
+    try {
+      await api.deleteCategory(moveFor.cat.id, moveTo);
+      setMoveFor(null);
       load();
     } catch (err) {
       setError(err.message);
@@ -93,6 +119,23 @@ export default function CategoriesPage() {
       </p>
 
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
+
+      {moveFor && (
+        <div className="card-surface p-4 mb-5 border-saffron/60">
+          <p className="text-sm mb-3">
+            <strong>{moveFor.cat.name}</strong> still has <strong>{moveFor.count}</strong> item{moveFor.count > 1 ? "s" : ""}.
+            Move them to another category, then it will be deleted.
+          </p>
+          <div className="flex gap-2 items-center">
+            <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)} className="field-input flex-1 bg-white">
+              <option value="">Move items to…</option>
+              {categories.filter((c) => c.id !== moveFor.cat.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button onClick={confirmMove} className="btn-primary text-sm">Move and delete</button>
+            <button onClick={() => setMoveFor(null)} className="text-sm px-3 py-2 border border-line rounded-sm">Cancel</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-3">

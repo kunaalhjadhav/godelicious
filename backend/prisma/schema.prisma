@@ -244,6 +244,8 @@ model MenuItem {
   lowStockAt      Int       @default(5)
   servesPerUnit   Int       @default(1)  // guests fed per piece (or per kg when soldByWeight)
   plannerRole     String?   // MAIN | SWEET | DRINK - used by the party planner and weekly box
+  isArchived      Boolean   @default(false) // "deleted" but kept because past orders/plans still point at it
+  isMealBox       Boolean   @default(false) // a meal box built by the admin from other menu items
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -252,6 +254,32 @@ model MenuItem {
   orderItems     OrderItem[]
   inventoryLogs  InventoryLog[]
   comboGroups    ComboGroup[]
+  mealBoxItems   MealBoxItem[] @relation("BoxContents")   // when isMealBox: the dishes inside this box
+  includedIn     MealBoxItem[] @relation("IncludedDish")  // the boxes this dish is part of
+}
+
+// The dishes that make up a meal box. A meal box is a MenuItem with isMealBox = true,
+// so carts, stock, coupons and orders all work on it exactly like any other item.
+model MealBoxItem {
+  id         String   @id @default(uuid())
+  boxId      String
+  box        MenuItem @relation("BoxContents", fields: [boxId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       MenuItem @relation("IncludedDish", fields: [itemId], references: [id], onDelete: Cascade)
+  note       String?  // e.g. "2 pieces" or "150 g"
+  sortOrder  Int      @default(0)
+
+  @@unique([boxId, itemId])
+}
+
+// Images/videos uploaded from the admin when Cloudinary is not configured. Stored in the
+// database so they survive Railway redeploys (the server's own disk is wiped on every deploy).
+model UploadedFile {
+  id        String   @id @default(uuid())
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
 }
 
 // A combo item (isCombo = true on MenuItem) has one or more ComboGroups,
@@ -311,6 +339,7 @@ model Order {
   forwardedAt        DateTime?        // when this order was sent to the delivery partner via WhatsApp
 
   deliveryFee      Float         @default(0)
+  gstAmount        Float         @default(0) // 5% GST added on top of (items - discount); 0 on older orders (GST was included)
   pointsUsed       Int           @default(0)
   pointsDiscount   Float         @default(0)
   subscriptionId   String?
@@ -507,6 +536,13 @@ model AppSettings {
   freeDeliveryAbove Float  @default(0)   // fee waived when the order is at least this much (0 = no threshold)
   subscriptionDiscountPct Float @default(8) // weekly meal box saving
   referralBonusPoints Int  @default(1000) // given to both people on the friend's first delivered order
+  gstPercent      Float    @default(5)    // GST added on top of the food total at checkout
+  couponMinOrder  Float    @default(1000) // coupons only apply when the cart (before discount) is at least this much
+  mealBoxMinQty   Int      @default(10)   // minimum number of meal boxes per order
+  serviceAreaOn   Boolean  @default(true)       // only deliver within the radius below
+  serviceLat      Float    @default(12.322983)  // centre of the delivery area (Vijayanagar 4th Stage, Mysuru)
+  serviceLng      Float    @default(76.5878328)
+  serviceRadiusKm Float    @default(20)
   updatedAt       DateTime @updatedAt
 }
 

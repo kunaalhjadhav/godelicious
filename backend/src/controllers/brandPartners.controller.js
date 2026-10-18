@@ -132,7 +132,7 @@ async function myOrders(req, res) {
 
 async function listMyMenu(req, res) {
   const items = await prisma.menuItem.findMany({
-    where: { brandId: myBrandId(req) },
+    where: { brandId: myBrandId(req), isArchived: false },
     include: { category: true, comboGroups: { include: { options: true } } },
     orderBy: { name: "asc" },
   });

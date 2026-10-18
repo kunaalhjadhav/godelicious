@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Image, StyleSheet, Dimensions } from "react-native";
+import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Linking } from "react-native";
 import { WebView } from "react-native-webview";
 import { api, API_URL } from "../api/client";
 import { colors } from "../theme";
@@ -23,7 +23,7 @@ function videoHtml(url) {
   `;
 }
 
-export default function BannerCarousel() {
+export default function BannerCarousel({ navigation }) {
   const [banners, setBanners] = useState([]);
   const [index, setIndex] = useState(0);
   const timerRef = useRef(null);
@@ -38,12 +38,30 @@ export default function BannerCarousel() {
     return () => clearInterval(timerRef.current);
   }, [banners]);
 
-  if (banners.length === 0) return null;
+  if (banners.length === 0) {
+    return (
+      <View style={[styles.container, styles.placeholder]}>
+        <Text style={styles.placeholderText}>Offers coming shortly</Text>
+      </View>
+    );
+  }
 
   const banner = banners[index];
 
+  function handleTap() {
+    if (!banner.linkUrl) return;
+    // Admin-set links look like "/menu/<itemId>" — matches the web route
+    // convention, so the same linkUrl value works on both platforms.
+    const menuMatch = banner.linkUrl.match(/^\/menu\/(.+)$/);
+    if (menuMatch) {
+      navigation?.navigate("ItemDetail", { itemId: menuMatch[1] });
+    } else if (banner.linkUrl.startsWith("http")) {
+      Linking.openURL(banner.linkUrl);
+    }
+  }
+
   return (
-    <View style={styles.container}>
+    <TouchableOpacity style={styles.container} onPress={handleTap} activeOpacity={banner.linkUrl ? 0.85 : 1}>
       {banner.mediaType === "IMAGE" ? (
         <Image source={{ uri: resolveUrl(banner.mediaUrl) }} style={styles.media} resizeMode="cover" />
       ) : (
@@ -70,12 +88,14 @@ export default function BannerCarousel() {
           ))}
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: { width, height: HEIGHT, backgroundColor: colors.charcoal },
+  placeholder: { justifyContent: "center", alignItems: "center" },
+  placeholderText: { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500" },
   media: { width, height: HEIGHT },
   titleOverlay: { position: "absolute", bottom: 16, left: 16 },
   titleText: { color: colors.paper, fontSize: 20, fontWeight: "700" },

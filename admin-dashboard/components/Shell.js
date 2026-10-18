@@ -6,10 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ClipboardList, Boxes, Utensils, PlusSquare, Warehouse, CalendarHeart,
   Tag, Tags, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
-  SlidersHorizontal, LogOut, Truck, ShieldCheck, Building2, Repeat,
+  SlidersHorizontal, LogOut, Truck, ShieldCheck, Building2, Repeat, PackageOpen,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { BUILD } from "@/lib/version";
 import AlertSetup from "@/components/AlertSetup";
 import NewOrderWatcher from "@/components/NewOrderWatcher";
 
@@ -36,6 +37,7 @@ const NAV_GROUPS = [
     label: "Catalog",
     items: [
       { href: "/menu", label: "Menu", icon: Utensils },
+      { href: "/meal-boxes", label: "Meal Boxes", icon: PackageOpen },
       { href: "/categories", label: "Categories", icon: Tags },
       { href: "/addons", label: "Add-ons", icon: PlusSquare },
     ],
@@ -93,7 +95,7 @@ export default function Shell({ children }) {
     <div className="min-h-screen flex bg-paper">
       <aside className="w-64 shrink-0 bg-charcoal text-paper flex flex-col">
         <div className="px-6 py-7 border-b border-white/10 flex items-center gap-2.5">
-          <img src="/logo.png" alt="" className="w-8 h-8 rounded-md" />
+          <img src="/logo.png?v=3" alt={APP_NAME} className="w-11 h-11 rounded-xl bg-paper object-cover ring-1 ring-white/20" />
           <div>
             <div className="font-display text-xl tracking-tight leading-none">{APP_NAME}</div>
             <div className="text-xs text-white/50 mt-0.5 font-mono">{APP_TAGLINE}</div>
@@ -134,6 +136,7 @@ export default function Shell({ children }) {
           <AlertSetup />
           <div className="text-white/80">{user?.name}</div>
           <div className="text-white/40 mb-2">{user?.role}</div>
+          <div className="text-white/25 font-mono text-[10px] mb-2">build {BUILD}</div>
           <button onClick={logout} className="flex items-center gap-1 text-saffron hover:underline">
             <LogOut size={13} /> Sign out
           </button>

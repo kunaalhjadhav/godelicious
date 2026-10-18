@@ -19,13 +19,16 @@ export default function Nav() {
     <header className="bg-charcoal/95 backdrop-blur text-paper sticky top-0 z-40 border-b border-white/5">
       <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-display text-xl tracking-tight shrink-0">
-          <img src="/logo.png" alt="" className="w-7 h-7 rounded-md" />
+          <img src="/logo.png?v=3" alt="" className="w-9 h-9 rounded-lg bg-paper p-0.5" />
           {APP_NAME}
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm">
           <Link href="/" className={linkClass(pathname === "/")}>
             Menu
+          </Link>
+          <Link href="/meal-boxes" className={linkClass(pathname?.startsWith("/meal-boxes"))}>
+            Meal boxes
           </Link>
           <Link href="/brands" className={linkClass(pathname?.startsWith("/brands"))}>
             <Store size={15} /> Brand Partners

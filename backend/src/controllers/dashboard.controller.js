@@ -9,7 +9,7 @@ async function stats(req, res) {
         where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
       }),
       prisma.menuItem.findMany({
-        where: { stockQty: { lt: 10 } },
+        where: { stockQty: { lt: 10 }, isArchived: false },
         select: { id: true, name: true, stockQty: true },
       }),
       prisma.venueEnquiry.count({ where: { status: "PENDING" } }),

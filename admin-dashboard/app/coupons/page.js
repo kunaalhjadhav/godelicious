@@ -125,7 +125,7 @@ export default function CouponsPage() {
             className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
           />
           <input
-            type="number" placeholder="Minimum order amount (₹, optional)" value={form.minOrderAmount}
+            type="number" placeholder="Minimum cart for this coupon (₹, optional)" value={form.minOrderAmount}
             onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })}
             className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
           />

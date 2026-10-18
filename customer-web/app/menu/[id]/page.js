@@ -8,6 +8,8 @@ import Nav from "@/components/Nav";
 import ComboPickerModal from "@/components/ComboPickerModal";
 import { api, API_URL } from "@/lib/api";
 import { useCart } from "@/lib/useCart";
+import { api2 } from "@/lib/api2";
+import { mealBoxCount } from "@/lib/pricing";
 
 function resolveImageUrl(url) {
   if (!url) return null;
@@ -28,7 +30,17 @@ export default function MenuItemDetailPage() {
     api.getMenuItem(id).then((d) => setItem(d.item)).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, [id]);
 
-  const { addItem } = useCart();
+  const { addItem, items: cartItems } = useCart();
+  const [boxMin, setBoxMin] = useState(10);
+  const [qty, setQty] = useState(1);
+  const inCartBoxes = mealBoxCount(cartItems);
+
+  useEffect(() => { api2.getSettings().then((d) => setBoxMin(d.settings?.mealBoxMinQty || 10)).catch(() => {}); }, []);
+  // For a meal box, start at the number still needed to reach the minimum
+  useEffect(() => {
+    if (item?.isMealBox) setQty(Math.max(1, boxMin - inCartBoxes));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, boxMin]);
 
   function handlePrimaryAction() {
     if (!item) return;
@@ -41,7 +53,7 @@ export default function MenuItemDetailPage() {
       setComboOpen(true);
       return;
     }
-    addItem(item);
+    addItem(item, [], item.isMealBox ? qty : 1);
     router.push("/cart");
   }
 
@@ -107,9 +119,50 @@ export default function MenuItemDetailPage() {
 
             {item.description && <p className="text-ink/70 mb-6 leading-relaxed">{item.description}</p>}
 
-            <div className="font-display text-2xl text-ink mb-6">
-              ₹{item.price}{item.soldByWeight ? " / kg" : ""}
+            {item.isMealBox && (
+              <div className="mb-6">
+                <h2 className="font-display text-lg text-ink mb-3">What's in this box</h2>
+                <div className="space-y-2">
+                  {(item.mealBoxItems || []).map((m) => (
+                    <div key={m.id} className="flex items-center gap-3 bg-white border border-line rounded-sm p-2">
+                      {m.item?.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={resolveImageUrl(m.item.imageUrl)} alt={m.item.name} className="w-16 h-16 object-cover rounded-sm" />
+                      ) : (
+                        <div className="w-16 h-16 bg-line rounded-sm" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-ink">{m.item?.name}</div>
+                        {m.note && <div className="text-xs text-ink/50">{m.note}</div>}
+                      </div>
+                      <span className={`w-2.5 h-2.5 rounded-full mr-2 ${m.item?.isVeg ? "bg-basil" : "bg-chili"}`} />
+                    </div>
+                  ))}
+                  {(item.mealBoxItems || []).length === 0 && (
+                    <p className="text-sm text-ink/40">The dishes in this box will be listed here.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="font-display text-2xl text-ink mb-2">
+              ₹{item.price}{item.soldByWeight ? " / kg" : item.isMealBox ? " per box" : ""}
+              <span className="text-xs font-sans text-ink/50"> + GST</span>
             </div>
+            {item.isMealBox && (
+              <div className="mb-6">
+                <p className="text-xs text-ink/60 mb-3">
+                  Minimum {boxMin} meals per order. You can mix different meal boxes.
+                  {inCartBoxes > 0 ? ` You already have ${inCartBoxes} in your cart.` : ""}
+                </p>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-9 h-9 rounded-sm bg-line text-ink flex items-center justify-center"><Minus size={16} /></button>
+                  <span className="w-10 text-center font-medium">{qty}</span>
+                  <button onClick={() => setQty((q) => q + 1)} className="w-9 h-9 rounded-sm bg-line text-ink flex items-center justify-center"><Plus size={16} /></button>
+                </div>
+              </div>
+            )}
+            {!item.isMealBox && <div className="mb-4" />}
 
             {error && <p className="text-chili text-sm mb-4">{error}</p>}
 

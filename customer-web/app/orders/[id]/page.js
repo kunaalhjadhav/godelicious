@@ -151,9 +151,15 @@ export default function OrderDetailPage() {
               <span>−₹{order.discountAmount.toFixed(0)}</span>
             </div>
           )}
+          {order.gstAmount > 0 && (
+            <div className="flex justify-between text-sm py-1 text-ink/70">
+              <span>GST</span>
+              <span>₹{order.gstAmount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold pt-3 mt-2 border-t border-line">
             <span>Total</span>
-            <span>₹{order.totalAmount.toFixed(0)}</span>
+            <span>₹{order.totalAmount.toFixed(2)}</span>
           </div>
         </div>
 

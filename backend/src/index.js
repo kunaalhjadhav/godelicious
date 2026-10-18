@@ -37,9 +37,13 @@ const addressesRoutes = require("./routes/addresses.routes");
 const loyaltyRoutes = require("./routes/loyalty.routes");
 const plannerRoutes = require("./routes/planner.routes");
 const subscriptionsRoutes = require("./routes/subscriptions.routes");
+const mealBoxesRoutes = require("./routes/mealboxes.routes");
 const { startScheduler } = require("./services/subscription.service");
 
 const app = express();
+
+// Railway sits behind a proxy: needed for the real client IP (rate limits) and the https address of uploaded files
+app.set("trust proxy", 1);
 
 // Sets a handful of standard security-related HTTP headers (hides the
 // Express fingerprint, blocks MIME-sniffing, disables framing, etc).
@@ -93,6 +97,13 @@ app.use("/api/venues/register", authLimiter);
 app.use(express.json());
 app.use(morgan("dev"));
 
+// Never let a browser or the app reuse an old answer for data that the admin edits
+// (banners, menu, prices, settings) - otherwise changes seem not to "take".
+app.use("/api", (req, res, next) => {
+  if (req.method === "GET" && !req.path.startsWith("/uploads/file/")) res.set("Cache-Control", "no-store");
+  next();
+});
+
 app.get("/health", (req, res) => res.json({ status: "ok", time: new Date().toISOString() }));
 
 // Serves uploaded images directly, e.g. GET /uploads/169... .jpg
@@ -129,6 +140,7 @@ app.use("/api/addresses", addressesRoutes);
 app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/planner", plannerRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
+app.use("/api/meal-boxes", mealBoxesRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));

@@ -70,7 +70,8 @@ export default function OrdersPage() {
       itemLines,
       addonLines,
       ``,
-      `Total: ₹${order.totalAmount.toFixed(0)}`,
+      order.gstAmount > 0 ? `GST: ₹${order.gstAmount.toFixed(2)}` : null,
+      `Total: ₹${order.totalAmount.toFixed(2).replace(/\.00$/, "")}`,
     ].filter(Boolean).join("\n");
   }
 
@@ -221,9 +222,12 @@ export default function OrdersPage() {
                     Discount {order.couponCode ? `(${order.couponCode})` : ""} — −₹{order.discountAmount.toFixed(0)}
                   </li>
                 )}
+                {order.gstAmount > 0 && <li>GST — ₹{order.gstAmount.toFixed(2).replace(/\.00$/, "")}</li>}
+                {order.deliveryFee > 0 && <li>Delivery — ₹{order.deliveryFee.toFixed(0)}</li>}
+                {order.pointsDiscount > 0 && <li className="text-basil">Reward points — −₹{order.pointsDiscount.toFixed(0)}</li>}
               </ul>
               <div className="mt-2 font-mono text-sm text-ink font-medium">
-                Total: ₹{order.totalAmount.toFixed(0)}
+                Total: ₹{order.totalAmount.toFixed(2).replace(/\.00$/, "")}{order.gstAmount > 0 ? " (incl. GST)" : ""}
               </div>
             </div>
             <div className="flex flex-col gap-2 shrink-0">

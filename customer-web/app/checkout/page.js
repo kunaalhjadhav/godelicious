@@ -7,9 +7,11 @@ import Nav from "@/components/Nav";
 import LocationPickerMap from "@/components/LocationPickerMap";
 import { MapPin, CheckCircle2, Map as MapIcon } from "lucide-react";
 import { api } from "@/lib/api";
+import { api2 } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
 import { useCart } from "@/lib/useCart";
 import { APP_NAME } from "@/lib/brand";
+import { computeTotals, rupees, mealBoxCount } from "@/lib/pricing";
 
 const MIN_LEAD_HOURS = 15;
 
@@ -55,6 +57,13 @@ export default function CheckoutPage() {
   const [eventTime, setEventTime] = useState("");
   const [guestCount, setGuestCount] = useState("");
   const [coords, setCoords] = useState(null);
+  const [areaMsg, setAreaMsg] = useState(""); // set when the chosen location is outside the delivery area
+  useEffect(() => {
+    if (!coords) { setAreaMsg(""); return; }
+    api2.serviceCheck(coords.latitude, coords.longitude)
+      .then((r) => setAreaMsg(r.ok ? "" : r.message || "Service not available to this area yet. Coming shortly. Thank you."))
+      .catch(() => {});
+  }, [coords]);
   const [showMap, setShowMap] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -158,23 +167,24 @@ export default function CheckoutPage() {
   }
 
   const discount = couponStatus?.discountAmount || 0;
-  const cartValue = Math.max(0, totalAmount - discount);
-  // Delivery fee (0 = free). Same rule the server applies: waived at or above the free-delivery amount.
+  // Delivery fee (0 = free). Same rule the server applies: waived at or above the free-delivery amount (pre-discount subtotal).
   const deliveryFee = settings && settings.deliveryFee > 0 && !(settings.freeDeliveryAbove > 0 && totalAmount >= settings.freeDeliveryAbove)
     ? settings.deliveryFee : 0;
-  const finalTotal = cartValue + deliveryFee;
-  // Informational breakdown only — does not change the amount actually
-  // charged. If you want GST added as a genuine extra charge on top of
-  // prices, that needs a backend pricing change too — check with your
-  // accountant on GST registration/compliance before doing that.
-  const GST_RATE = 0.05;
-  const gstAmount = finalTotal - finalTotal / (1 + GST_RATE);
-  const belowMinimum = settings && cartValue < settings.minOrderAmount && cartValue > 0;
+  // GST is added ON TOP of the prices (after the coupon). Same sum as the server.
+  const gstPercent = settings?.gstPercent ?? 5;
+  const totals = computeTotals({ subtotal: totalAmount, discount, deliveryFee, gstPercent });
+  const finalTotal = totals.total;
+  // Minimums are checked on the subtotal BEFORE the coupon, so a discount can take the bill below the minimum.
+  const belowMinimum = settings && totalAmount < settings.minOrderAmount && totalAmount > 0;
+  const boxQty = mealBoxCount(items);
+  const boxMin = settings?.mealBoxMinQty ?? 10;
+  const belowBoxMin = boxQty > 0 && boxQty < boxMin;
   const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    if (areaMsg) { setError(areaMsg); return; }
 
     if (!eventDate || !eventTime) {
       setError("Please select a delivery date and time.");
@@ -184,6 +194,11 @@ export default function CheckoutPage() {
     const minAllowed = new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
     if (chosen < minAllowed) {
       setError(`Orders must be placed at least ${MIN_LEAD_HOURS} hours before the selected delivery time.`);
+      return;
+    }
+
+    if (belowBoxMin) {
+      setError(`Meal boxes need a minimum of ${boxMin} meals per order. Add ${boxMin - boxQty} more.`);
       return;
     }
 
@@ -292,6 +307,7 @@ export default function CheckoutPage() {
           >
             <MapIcon size={13} /> {showMap ? "Hide map" : "Pick on map"}
           </button>
+          {areaMsg && <p className="text-sm text-chili bg-chili/10 border-l-2 border-chili px-3 py-2 mb-3">{areaMsg}</p>}
           {showMap && (
             <LocationPickerMap
               initialLat={coords?.latitude} initialLng={coords?.longitude}
@@ -375,7 +391,7 @@ export default function CheckoutPage() {
           </div>
           {couponStatus?.error && <p className="text-xs text-chili mb-3">{couponStatus.error}</p>}
           {couponStatus?.discountAmount > 0 && (
-            <p className="text-xs text-basil mb-3">✓ ₹{couponStatus.discountAmount.toFixed(0)} discount applied</p>
+            <p className="text-xs text-basil mb-3">✓ {rupees(couponStatus.discountAmount)} discount applied (GST is added after the discount)</p>
           )}
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-2 mt-3">Payment method</label>
@@ -402,37 +418,46 @@ export default function CheckoutPage() {
             {items.map((line) => (
               <div key={line.key} className="flex justify-between text-sm text-ink/70">
                 <span>{line.menuItem.soldByWeight ? `${line.quantity}g` : `${line.quantity}×`} {line.menuItem.name}</span>
-                <span>₹{(line.unitPrice * line.quantity).toFixed(0)}</span>
+                <span>{rupees(line.unitPrice * line.quantity)}</span>
               </div>
             ))}
+            <div className="flex justify-between text-sm text-ink/70 border-t border-line pt-2">
+              <span>Subtotal</span>
+              <span>{rupees(totals.subtotal)}</span>
+            </div>
             {discount > 0 && (
               <div className="flex justify-between text-sm text-basil">
-                <span>Discount</span>
-                <span>−₹{discount.toFixed(0)}</span>
+                <span>Coupon discount</span>
+                <span>−{rupees(totals.discount)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm text-ink/70">
-              <span>GST (5%, included)</span>
-              <span>₹{gstAmount.toFixed(0)}</span>
+              <span>GST ({gstPercent}%)</span>
+              <span>{rupees(totals.gst)}</span>
             </div>
             <div className={`flex justify-between text-sm ${deliveryFee === 0 ? "text-basil" : "text-ink/70"}`}>
               <span>Delivery</span>
-              <span>{deliveryFee === 0 ? "Free" : `₹${deliveryFee}`}</span>
+              <span>{deliveryFee === 0 ? "Free" : rupees(deliveryFee)}</span>
             </div>
             <div className="flex justify-between font-semibold text-ink pt-2">
               <span>Total</span>
-              <span>₹{finalTotal.toFixed(0)}</span>
+              <span>{rupees(finalTotal)}</span>
             </div>
           </div>
 
           {belowMinimum && (
             <p className="text-xs text-chili mt-3">
-              Minimum order amount is ₹{settings.minOrderAmount}. Add ₹{(settings.minOrderAmount - cartValue).toFixed(0)} more to checkout.
+              Minimum order amount is ₹{settings.minOrderAmount}. Add {rupees(settings.minOrderAmount - totalAmount)} more (before any coupon) to checkout.
+            </p>
+          )}
+          {belowBoxMin && (
+            <p className="text-xs text-chili mt-3">
+              Meal boxes need a minimum of {boxMin} meals per order. Add {boxMin - boxQty} more.
             </p>
           )}
 
           <button
-            type="submit" disabled={submitting || belowMinimum || dateTimeInvalid}
+            type="submit" disabled={submitting || belowMinimum || belowBoxMin || dateTimeInvalid}
             className="btn-primary w-full mt-5 py-3"
           >
             {submitting ? "Processing…" : paymentMethod === "COD" ? "Place order (Cash on delivery)" : "Pay & place order"}

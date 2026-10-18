@@ -26,7 +26,7 @@ export default function OrderTypesSection() {
         {orderTypes.map((ot) => (
           <button
             key={ot.id}
-            onClick={() => router.push(`/booking/${ot.id}`)}
+            onClick={() => router.push(/meal\s*box/i.test(ot.name) ? "/meal-boxes" : `/booking/${ot.id}`)}
             className="group text-left card-surface card-surface--interactive shadow-lg overflow-hidden"
           >
             <div
@@ -37,7 +37,7 @@ export default function OrderTypesSection() {
               <h3 className="font-display text-lg text-ink mb-1">{ot.name}</h3>
               {ot.description && <p className="text-xs text-ink/60 line-clamp-2">{ot.description}</p>}
               <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-saffron2 group-hover:gap-1.5 transition-all">
-                Book this <ArrowRight size={12} />
+                {/meal\s*box/i.test(ot.name) ? "Choose boxes" : "Book this"} <ArrowRight size={12} />
               </span>
             </div>
           </button>

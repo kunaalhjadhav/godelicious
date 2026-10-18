@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Papa from "papaparse";
 import Shell from "@/components/Shell";
 import { api, API_URL } from "@/lib/api";
@@ -15,6 +16,8 @@ export default function MenuPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const formRef = useRef(null);
   const [newCategory, setNewCategory] = useState("");
   const [uploading, setUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
@@ -95,6 +98,8 @@ export default function MenuPage() {
   }
 
   function edit(item) {
+    setError("");
+    setNotice("");
     setEditingId(item.id);
     setForm({
       name: item.name,
@@ -110,25 +115,46 @@ export default function MenuPage() {
       servesPerUnit: item.servesPerUnit && item.servesPerUnit > 1 ? item.servesPerUnit : "",
       minOrderGrams: item.soldByWeight ? item.minOrderGrams || 1000 : "",
     });
+    // bring the form into view so it is obvious that editing has started
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
 
   async function toggleAvailable(item) {
-    await api.updateMenuItem(item.id, { isAvailable: !item.isAvailable });
-    load();
+    setError("");
+    try {
+      await api.updateMenuItem(item.id, { isAvailable: !item.isAvailable });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function remove(item) {
-    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
-    await api.deleteMenuItem(item.id);
-    load();
+    if (!confirm(`Delete "${item.name}"?`)) return;
+    setError("");
+    setNotice("");
+    try {
+      const r = await api.deleteMenuItem(item.id);
+      if (editingId === item.id) { setEditingId(null); setForm(EMPTY_FORM); }
+      setNotice(r.archived ? `"${item.name}" was removed from the shop. ${r.message}` : `"${item.name}" was deleted.`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function addCategory(e) {
     e.preventDefault();
     if (!newCategory.trim()) return;
-    await api.createCategory(newCategory.trim());
-    setNewCategory("");
-    load();
+    setError("");
+    try {
+      await api.createCategory({ name: newCategory.trim() });
+      setNewCategory("");
+      setNotice(`Category "${newCategory.trim()}" added.`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (
@@ -137,8 +163,9 @@ export default function MenuPage() {
       <p className="text-sm text-ink/50 mb-6">Manage dishes, pricing, and availability</p>
 
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
+      {notice && <p className="text-basil text-sm mb-4">{notice}</p>}
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 gap-6 items-start">
         <div className="col-span-2 card-surface">
           <table className="w-full text-sm">
             <thead className="text-left text-xs font-mono uppercase text-ink/50 border-b border-line">
@@ -169,6 +196,11 @@ export default function MenuPage() {
                         per kg
                       </span>
                     )}
+                    {item.isMealBox && (
+                      <span className="ml-2 text-[10px] font-mono uppercase bg-saffron/20 text-saffron2 px-1.5 py-0.5 rounded-sm">
+                        meal box
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-ink/60">{item.category?.name}</td>
                   <td className="px-4 py-3 font-mono">₹{item.price}{item.soldByWeight ? "/kg" : ""}</td>
@@ -184,7 +216,11 @@ export default function MenuPage() {
                     </button>
                   </td>
                   <td className="px-4 py-3 space-x-2">
-                    <button onClick={() => edit(item)} className="text-saffron2 text-xs hover:underline">Edit</button>
+                    {item.isMealBox ? (
+                      <Link href="/meal-boxes" className="text-saffron2 text-xs hover:underline">Edit box</Link>
+                    ) : (
+                      <button onClick={() => edit(item)} className="text-saffron2 text-xs hover:underline">Edit</button>
+                    )}
                     <button onClick={() => remove(item)} className="text-chili text-xs hover:underline">Delete</button>
                   </td>
                 </tr>
@@ -193,9 +229,9 @@ export default function MenuPage() {
           </table>
         </div>
 
-        <div className="space-y-6">
-          <form onSubmit={handleSubmit} className="card-surface p-5">
-            <h2 className="font-display text-lg mb-3">{editingId ? "Edit item" : "New item"}</h2>
+        <div className="space-y-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
+          <form ref={formRef} onSubmit={handleSubmit} className={`card-surface p-5 ${editingId ? "ring-2 ring-saffron" : ""}`}>
+            <h2 className="font-display text-lg mb-3">{editingId ? "Editing: " + (form.name || "item") : "New item"}</h2>
             <input
               placeholder="Name" required value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}

@@ -6,9 +6,14 @@ import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../api/client";
 import { colors, spacing } from "../theme";
 
-export default function ChatScreen() {
+export default function ChatScreen({ route }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+
+  // Opened from an order or the party planner: start the message for the customer
+  useEffect(() => {
+    if (route?.params?.prefill) setText(route.params.prefill);
+  }, [route?.params?.prefill]);
   const listRef = useRef(null);
 
   const load = useCallback(() => {
@@ -86,7 +91,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row", padding: spacing.sm, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.white,
   },
-  input: { flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8, marginRight: spacing.sm },
+  input: { flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8, marginRight: spacing.sm, color: colors.ink },
   sendBtn: { backgroundColor: colors.charcoal, borderRadius: 4, paddingHorizontal: 16, justifyContent: "center" },
   sendBtnText: { color: colors.paper, fontWeight: "600" },
 });

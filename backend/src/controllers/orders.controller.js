@@ -1,7 +1,9 @@
 const prisma = require("../config/db");
+const { checkServiceArea } = require("../utils/serviceArea");
 const { sendPushToUser } = require("../services/push.service");
 const { notifyNewOrder } = require("../services/notify.service");
 const { POINTS_PER_RUPEE, awardForDelivered, refundPointsForCancelled } = require("../services/loyalty.service");
+const { computeTotals, couponMinimum } = require("../utils/pricing");
 
 const VALID_STATUSES = [
   "PENDING",
@@ -70,12 +72,15 @@ async function createOrder(req, res) {
     const settings = await prisma.appSettings.upsert({
       where: { id: "singleton" }, update: {}, create: { id: "singleton" },
     });
+    const area = checkServiceArea(settings, latitude, longitude);
+    if (!area.ok) return res.status(400).json({ error: area.message, outOfArea: !area.needsLocation });
     if (method === "COD" && !settings.codEnabled) {
       return res.status(400).json({ error: "Cash on delivery isn't available right now — please pay online." });
     }
 
     const order = await prisma.$transaction(async (tx) => {
       let subtotal = 0;
+      let mealBoxUnits = 0; // how many meal boxes are in this order (minimum applies, see below)
       const orderItemsData = [];
 
       for (const line of itemLines) {
@@ -83,7 +88,7 @@ async function createOrder(req, res) {
         if (!menuItem) {
           throw new Error(`Menu item ${line.menuItemId} not found.`);
         }
-        if (menuItem.approvalStatus !== "APPROVED") {
+        if (menuItem.approvalStatus !== "APPROVED" || menuItem.isArchived) {
           throw new Error(`${menuItem.name} is not available.`);
         }
         if (!menuItem.isAvailable) {
@@ -109,6 +114,8 @@ async function createOrder(req, res) {
           }
         }
 
+        if (menuItem.isMealBox) mealBoxUnits += Number(line.quantity) || 0;
+
         const lineValue = unitPrice * line.quantity;
         // No per-item minimum here — the order-wide minOrderAmount check further
         // down applies to the whole cart's total, so a weight item can be
@@ -130,6 +137,12 @@ async function createOrder(req, res) {
         await tx.inventoryLog.create({
           data: { menuItemId: menuItem.id, changeQty: -line.quantity, reason: "order" },
         });
+      }
+
+      if (mealBoxUnits > 0 && mealBoxUnits < settings.mealBoxMinQty) {
+        throw new Error(
+          `Meal boxes need a minimum of ${settings.mealBoxMinQty} meals per order. You have ${mealBoxUnits} - please add ${settings.mealBoxMinQty - mealBoxUnits} more.`
+        );
       }
 
       // Validate the order type, if given
@@ -173,8 +186,9 @@ async function createOrder(req, res) {
         if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
           throw new Error("This coupon has reached its usage limit.");
         }
-        if (subtotal < coupon.minOrderAmount) {
-          throw new Error(`This coupon requires a minimum order of ₹${coupon.minOrderAmount}.`);
+        const needed = couponMinimum(coupon, settings);
+        if (subtotal < needed) {
+          throw new Error(`This coupon can be used on orders of ₹${needed} or more (before the discount).`);
         }
 
         discountAmount = coupon.discountType === "PERCENT"
@@ -186,9 +200,10 @@ async function createOrder(req, res) {
         appliedCouponCode = coupon.code;
       }
 
-      const cartValue = subtotal - discountAmount;
-      if (cartValue < settings.minOrderAmount) {
-        throw new Error(`Minimum order amount is ₹${settings.minOrderAmount}. Your order total is ₹${cartValue.toFixed(0)}.`);
+      // The minimum order is checked on the cart BEFORE the coupon discount, so applying a
+      // coupon can never stop a customer who already met the minimum from checking out.
+      if (subtotal < settings.minOrderAmount) {
+        throw new Error(`Minimum order amount is ₹${settings.minOrderAmount}. Your cart is ₹${subtotal.toFixed(0)}.`);
       }
 
       // Delivery fee (0 = free). Waived once the cart reaches the free-delivery threshold.
@@ -198,26 +213,31 @@ async function createOrder(req, res) {
         deliveryFee = waived ? 0 : settings.deliveryFee;
       }
 
-      // Reward points: 10 points = Rs 1. Only whole rupees are redeemed.
+      // GST is added on top of (cart - coupon discount). Reward points (10 points = Rs 1)
+      // are taken off the amount payable, in whole rupees only.
       let pointsUsed = 0;
       let pointsDiscount = 0;
+      const base = computeTotals({ subtotal, discount: discountAmount, deliveryFee, gstPercent: settings.gstPercent });
       if (usePoints) {
         const me = await tx.user.findUnique({ where: { id: req.user.id }, select: { loyaltyPoints: true } });
         const maxRupees = Math.floor((me?.loyaltyPoints || 0) / POINTS_PER_RUPEE);
-        pointsDiscount = Math.max(0, Math.min(maxRupees, Math.floor(cartValue + deliveryFee)));
+        pointsDiscount = Math.max(0, Math.min(maxRupees, Math.floor(base.taxable + base.gst + base.deliveryFee)));
         pointsUsed = pointsDiscount * POINTS_PER_RUPEE;
         if (pointsUsed > 0) {
           await tx.user.update({ where: { id: req.user.id }, data: { loyaltyPoints: { decrement: pointsUsed } } });
         }
       }
-
-      const finalTotal = cartValue + deliveryFee - pointsDiscount;
+      const totals = computeTotals({
+        subtotal, discount: discountAmount, deliveryFee, pointsRupees: pointsDiscount, gstPercent: settings.gstPercent,
+      });
+      const finalTotal = totals.total;
 
       const created = await tx.order.create({
         data: {
           userId: req.user.id,
           totalAmount: finalTotal,
-          discountAmount,
+          gstAmount: totals.gst,
+          discountAmount: totals.discount,
           couponCode: appliedCouponCode,
           deliveryAddress,
           contactPhone,

@@ -4,6 +4,7 @@ const prisma = require("../config/db");
 // GET /api/inventory (ADMIN/STAFF) - current stock levels for every menu item
 async function listInventory(req, res) {
   const items = await prisma.menuItem.findMany({
+    where: { isArchived: false },
     select: {
       id: true,
       name: true,

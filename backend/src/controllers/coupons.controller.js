@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { couponMinimum } = require("../utils/pricing");
 
 // GET /api/coupons (ADMIN)
 async function listCoupons(req, res) {
@@ -80,8 +81,10 @@ async function validateCoupon(req, res) {
   if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
     return res.status(400).json({ error: "This coupon has reached its usage limit." });
   }
-  if (Number(subtotal) < coupon.minOrderAmount) {
-    return res.status(400).json({ error: `This coupon requires a minimum order of ₹${coupon.minOrderAmount}.` });
+  const settings = await prisma.appSettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
+  const needed = couponMinimum(coupon, settings);
+  if (Number(subtotal) < needed) {
+    return res.status(400).json({ error: `This coupon can be used on orders of ₹${needed} or more (before the discount).` });
   }
 
   const discountAmount = coupon.discountType === "PERCENT"

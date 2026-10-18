@@ -29,7 +29,10 @@ async function request(path, options = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(data.error || `Request failed with status ${res.status}`);
+    const err = new Error(data.error || `Request failed with status ${res.status}`);
+    err.status = res.status;
+    if (data.itemCount !== undefined) err.itemCount = data.itemCount;
+    throw err;
   }
   return data;
 }
@@ -51,7 +54,14 @@ export const api = {
   deleteMenuItem: (id) => request(`/api/menu/${id}`, { method: "DELETE" }),
   createCategory: (payload) => request("/api/menu/categories", { method: "POST", body: payload }),
   updateCategory: (id, payload) => request(`/api/menu/categories/${id}`, { method: "PATCH", body: payload }),
-  deleteCategory: (id) => request(`/api/menu/categories/${id}`, { method: "DELETE" }),
+  deleteCategory: (id, moveTo) =>
+    request(`/api/menu/categories/${id}${moveTo ? `?moveTo=${encodeURIComponent(moveTo)}` : ""}`, { method: "DELETE" }),
+
+  // Meal boxes (a box is built from existing menu items)
+  listMealBoxes: () => request("/api/meal-boxes/admin/all"),
+  createMealBox: (payload) => request("/api/meal-boxes", { method: "POST", body: payload }),
+  updateMealBox: (id, payload) => request(`/api/meal-boxes/${id}`, { method: "PUT", body: payload }),
+  deleteMealBox: (id) => request(`/api/meal-boxes/${id}`, { method: "DELETE" }),
 
   // Multipart upload — bypasses the JSON request() wrapper since it needs
   // FormData with no Content-Type header (the browser sets the boundary itself).

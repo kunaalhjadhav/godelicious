@@ -1,11 +1,25 @@
 import "./globals.css";
 import Providers from "./providers";
+import MobileTabs from "@/components/MobileTabs";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 export const metadata = {
   title: `${APP_NAME} — ${APP_TAGLINE}`,
   description: `Order catering online or enquire about your venue with ${APP_NAME}.`,
+  icons: {
+    icon: [
+      { url: "/favicon.ico?v=3", sizes: "any" },
+      { url: "/icon-192.png?v=3", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png?v=3", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico?v=3",
+    apple: [{ url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" }],
+  },
+  manifest: "/manifest.webmanifest?v=3",
 };
+
+export const viewport = { themeColor: "#2F5233" };
+
 
 export default function RootLayout({ children }) {
   return (
@@ -19,7 +33,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="font-body">
-        <Providers>{children}</Providers>
+        <Providers>{children}<MobileTabs /></Providers>
       </body>
     </html>
   );

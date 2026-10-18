@@ -52,7 +52,7 @@ async function homeFeed(req, res) {
   const userId = req.user?.id || null;
   const now = new Date();
 
-  const [settings, bestsellers, brands, venueCount, venueTariff, offers, publicCoupons, mainItems] = await Promise.all([
+  const [settings, bestsellers, brands, venueCount, venueTariff, offers, publicCoupons, mainItems, mealBoxes] = await Promise.all([
     prisma.appSettings.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } }),
     getBestsellers(6),
     prisma.brand.findMany({ where: { isActive: true, isApproved: true }, select: { id: true, name: true, logoUrl: true }, take: 10, orderBy: { name: "asc" } }),
@@ -67,7 +67,12 @@ async function homeFeed(req, res) {
       orderBy: { createdAt: "desc" }, take: 5,
     }),
     prisma.menuItem.findMany({
-      where: { plannerRole: "MAIN", approvalStatus: "APPROVED", isAvailable: true }, select: { price: true },
+      where: { plannerRole: "MAIN", approvalStatus: "APPROVED", isAvailable: true, isArchived: false }, select: { price: true },
+    }),
+    prisma.menuItem.findMany({
+      where: { isMealBox: true, approvalStatus: "APPROVED", isAvailable: true, isArchived: false },
+      select: { id: true, name: true, imageUrl: true, price: true, isVeg: true, stockQty: true, _count: { select: { mealBoxItems: true } } },
+      orderBy: { createdAt: "desc" }, take: 8,
     }),
   ]);
 
@@ -137,7 +142,8 @@ async function homeFeed(req, res) {
     offerCards.push({
       type: "COUPON", code: c.code,
       title: c.title || (c.discountType === "PERCENT" ? `${c.discountValue}% off` : `₹${c.discountValue} off`),
-      subtitle: c.minOrderAmount > 0 ? `On orders above ₹${Math.round(c.minOrderAmount)}` : "Tap to copy the code",
+      subtitle: `On orders of ₹${Math.round(Math.max(c.minOrderAmount || 0, settings.couponMinOrder || 0))} or more`,
+      minOrder: Math.max(c.minOrderAmount || 0, settings.couponMinOrder || 0),
     });
   }
   for (const o of offers) {
@@ -164,6 +170,16 @@ async function homeFeed(req, res) {
       minOrderAmount: settings.minOrderAmount,
       deliveryFee: settings.deliveryFee,
       freeDeliveryAbove: settings.freeDeliveryAbove,
+      gstPercent: settings.gstPercent,
+      couponMinOrder: settings.couponMinOrder,
+      mealBoxMinQty: settings.mealBoxMinQty,
+    },
+    mealBoxes: {
+      minQty: settings.mealBoxMinQty,
+      items: mealBoxes.map((b) => ({
+        id: b.id, name: b.name, imageUrl: b.imageUrl, price: b.price, isVeg: b.isVeg, stockQty: b.stockQty,
+        dishCount: b._count.mealBoxItems,
+      })),
     },
   });
 }

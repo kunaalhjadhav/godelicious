@@ -4,6 +4,7 @@ const settings = require("../controllers/settings.controller");
 const { requireAuth, requireRole, optionalAuth } = require("../middleware/auth");
 
 router.get("/", optionalAuth, settings.getSettings);
+router.post("/service-check", settings.serviceCheck);
 router.patch("/", requireAuth, requireRole("ADMIN"), settings.updateSettings);
 
 module.exports = router;

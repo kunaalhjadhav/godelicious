@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { computeTotals, rupees } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import Script from "next/script";
 import { MapPin, CheckCircle2, Map as MapIcon } from "lucide-react";
 import Nav from "@/components/Nav";
 import LocationPickerMap from "@/components/LocationPickerMap";
 import { api, API_URL } from "@/lib/api";
+import { api2 } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
 
 function resolveUrl(url) {
@@ -60,6 +62,13 @@ export default function BookingPage() {
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [coords, setCoords] = useState(null);
+  const [areaMsg, setAreaMsg] = useState(""); // set when the chosen location is outside the delivery area
+  useEffect(() => {
+    if (!coords) { setAreaMsg(""); return; }
+    api2.serviceCheck(coords.latitude, coords.longitude)
+      .then((r) => setAreaMsg(r.ok ? "" : r.message || "Service not available to this area yet. Coming shortly. Thank you."))
+      .catch(() => {});
+  }, [coords]);
   const [showMap, setShowMap] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -167,15 +176,14 @@ export default function BookingPage() {
   }, 0);
   const subtotal = staffCost + addonsCost;
   const discount = couponStatus?.discountAmount || 0;
-  const cartValue = Math.max(0, subtotal - discount);
-  // Delivery fee (0 = free). Same rule the server applies: waived at or above the free-delivery amount.
+  // Delivery fee (0 = free). Same rule the server applies: waived at or above the free-delivery amount (pre-discount).
   const deliveryFee = settings && settings.deliveryFee > 0 && !(settings.freeDeliveryAbove > 0 && subtotal >= settings.freeDeliveryAbove)
     ? settings.deliveryFee : 0;
-  const finalTotal = cartValue + deliveryFee;
-  // Informational breakdown only — see the same note in checkout/page.js
-  const GST_RATE = 0.05;
-  const gstAmount = finalTotal - finalTotal / (1 + GST_RATE);
-  const belowMinimum = settings && cartValue < settings.minOrderAmount && cartValue > 0;
+  // GST is added on top, after the coupon. Minimum order is checked before the coupon.
+  const gstPercent = settings?.gstPercent ?? 5;
+  const totals = computeTotals({ subtotal, discount, deliveryFee, gstPercent });
+  const finalTotal = totals.total;
+  const belowMinimum = settings && subtotal < settings.minOrderAmount && subtotal > 0;
   const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
   async function applyCoupon() {
@@ -194,6 +202,7 @@ export default function BookingPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (areaMsg) { setError(areaMsg); return; }
     if (!eventDate || !eventTime || !guestCount || !address || !phone) {
       setError("Please fill in date, time, guest count, address, and phone.");
       return;
@@ -356,6 +365,7 @@ export default function BookingPage() {
           >
             <MapIcon size={13} /> {showMap ? "Hide map" : "Pick on map"}
           </button>
+          {areaMsg && <p className="text-sm text-chili bg-chili/10 border-l-2 border-chili px-3 py-2 mb-3">{areaMsg}</p>}
           {showMap && (
             <LocationPickerMap
               initialLat={coords?.latitude} initialLng={coords?.longitude}
@@ -486,8 +496,8 @@ export default function BookingPage() {
               </div>
             )}
             <div className="flex justify-between text-sm text-ink/70">
-              <span>GST (5%, included)</span>
-              <span>₹{gstAmount.toFixed(0)}</span>
+              <span>GST ({gstPercent}%)</span>
+              <span>{rupees(totals.gst)}</span>
             </div>
             <div className={`flex justify-between text-sm ${deliveryFee === 0 ? "text-basil" : "text-ink/70"}`}>
               <span>Delivery</span>
@@ -495,13 +505,13 @@ export default function BookingPage() {
             </div>
             <div className="flex justify-between font-semibold text-ink pt-2 border-t border-line mt-2">
               <span>Total</span>
-              <span>₹{finalTotal.toFixed(0)}</span>
+              <span>{rupees(finalTotal)}</span>
             </div>
           </div>
 
           {belowMinimum && (
             <p className="text-xs text-chili mb-3">
-              Minimum order amount is ₹{settings.minOrderAmount}. Add ₹{(settings.minOrderAmount - cartValue).toFixed(0)} more (staff/add-ons) to continue.
+              Minimum order amount is ₹{settings.minOrderAmount}. Add {rupees(settings.minOrderAmount - subtotal)} more (staff/add-ons, before any coupon) to continue.
             </p>
           )}
 

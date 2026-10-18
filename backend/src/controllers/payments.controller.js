@@ -2,6 +2,7 @@ const { notifyPaymentReceived } = require("../services/notify.service");
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const prisma = require("../config/db");
+const { refundPointsForCancelled } = require("../services/loyalty.service");
 
 // Instantiated lazily so the app doesn't crash on boot if keys aren't set yet
 // (e.g. during initial local setup before you've created a Razorpay account).
@@ -52,8 +53,40 @@ async function createRazorpayOrder(req, res) {
       keyId: process.env.RAZORPAY_KEY_ID, // safe to expose — this is the public key, not the secret
     });
   } catch (err) {
-    console.error("createRazorpayOrder error:", err.message);
-    res.status(500).json({ error: err.message || "Could not create payment order." });
+    // The Razorpay SDK throws plain objects ({ statusCode, error: { code, description } }),
+    // so err.message is usually empty. Dig the real reason out so it can be fixed.
+    const rpDesc = err?.error?.description || err?.description;
+    const detail = rpDesc || err?.message || "unknown error";
+    console.error("createRazorpayOrder error:", err?.statusCode || "", detail, JSON.stringify(err?.error || {}));
+
+    let message = "Could not start the payment. Please try again, or choose Cash on Delivery.";
+    if (err?.statusCode === 401 || /authentication failed/i.test(detail)) {
+      message = "Online payment isn't set up correctly yet (payment keys rejected). Please choose Cash on Delivery or contact us.";
+    } else if (/isn't configured/i.test(detail)) {
+      message = "Online payment isn't switched on yet. Please choose Cash on Delivery or contact us.";
+    }
+
+    // The order was created just before this step. Cancel it so an unpaid order with
+    // reserved stock (and spent reward points) isn't left behind.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const existing = await tx.order.findUnique({ where: { id: order.id }, include: { items: true } });
+        if (!existing || existing.status === "CANCELLED" || existing.paymentStatus === "PAID") return;
+        for (const item of existing.items) {
+          await tx.menuItem.update({ where: { id: item.menuItemId }, data: { stockQty: { increment: item.quantity } } });
+          await tx.inventoryLog.create({
+            data: { menuItemId: item.menuItemId, changeQty: item.quantity, reason: "order_cancelled", staffId: req.user.id },
+          });
+        }
+        await tx.orderEvent.create({ data: { orderId: existing.id, status: "CANCELLED" } });
+        await refundPointsForCancelled(tx, existing);
+        await tx.order.update({ where: { id: existing.id }, data: { status: "CANCELLED" } });
+      }, { timeout: 15000, maxWait: 10000 });
+    } catch (cleanupErr) {
+      console.error("Could not cancel unpaid order after payment failure:", cleanupErr.message);
+    }
+
+    res.status(502).json({ error: message, detail });
   }
 }
 

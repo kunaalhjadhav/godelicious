@@ -13,30 +13,79 @@ async function listCategories(req, res) {
 
 // POST /api/categories (ADMIN)
 async function createCategory(req, res) {
-  const { name, sortOrder, imageUrl } = req.body;
-  if (!name) return res.status(400).json({ error: "name is required." });
-  const category = await prisma.category.create({ data: { name, sortOrder: sortOrder || 0, imageUrl } });
-  res.status(201).json({ category });
+  try {
+    const name = String(req.body?.name || "").trim();
+    if (!name) return res.status(400).json({ error: "name is required." });
+    const category = await prisma.category.create({
+      data: { name, sortOrder: Number(req.body.sortOrder) || 0, imageUrl: req.body.imageUrl || null },
+    });
+    res.status(201).json({ category });
+  } catch (err) {
+    if (err.code === "P2002") return res.status(409).json({ error: "A category with that name already exists." });
+    console.error("createCategory error:", err);
+    res.status(500).json({ error: "Could not create the category." });
+  }
 }
 
 // PATCH /api/menu/categories/:id (ADMIN)
 async function updateCategory(req, res) {
-  const { name, sortOrder, imageUrl } = req.body;
-  const category = await prisma.category.update({
-    where: { id: req.params.id },
-    data: {
-      ...(name !== undefined && { name }),
-      ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
-      ...(imageUrl !== undefined && { imageUrl }),
-    },
-  });
-  res.json({ category });
+  try {
+    const { name, sortOrder, imageUrl } = req.body;
+    if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: "The category needs a name." });
+    const category = await prisma.category.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined && { name: String(name).trim() }),
+        ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
+        ...(imageUrl !== undefined && { imageUrl }),
+      },
+    });
+    res.json({ category });
+  } catch (err) {
+    if (err.code === "P2002") return res.status(409).json({ error: "A category with that name already exists." });
+    if (err.code === "P2025") return res.status(404).json({ error: "Category not found." });
+    console.error("updateCategory error:", err);
+    res.status(500).json({ error: "Could not save the category." });
+  }
 }
 
-// DELETE /api/categories/:id (ADMIN)
+// DELETE /api/menu/categories/:id[?moveTo=<categoryId>] (ADMIN)
+// A category that still has dishes cannot simply vanish (the dishes would be orphaned), so the
+// admin either moves them to another category in the same step, or is told how many are left.
 async function deleteCategory(req, res) {
-  await prisma.category.delete({ where: { id: req.params.id } });
-  res.json({ success: true });
+  try {
+    const id = req.params.id;
+    const moveTo = req.query.moveTo ? String(req.query.moveTo) : null;
+    const category = await prisma.category.findUnique({ where: { id } });
+    if (!category) return res.status(404).json({ error: "Category not found." });
+
+    const live = await prisma.menuItem.count({ where: { categoryId: id, isArchived: false } });
+    const total = await prisma.menuItem.count({ where: { categoryId: id } });
+
+    if (total > 0) {
+      let targetId = moveTo;
+      if (live > 0 && !targetId) {
+        return res.status(409).json({
+          error: `"${category.name}" still has ${live} item${live > 1 ? "s" : ""}. Choose another category to move them to first.`,
+          itemCount: live,
+        });
+      }
+      if (!targetId) {
+        // only hidden/"deleted" dishes are left: park them in a holding category so history stays intact
+        const holding = await prisma.category.upsert({ where: { name: "Archived items" }, update: {}, create: { name: "Archived items", sortOrder: 999 } });
+        targetId = holding.id;
+      }
+      if (targetId === id) return res.status(400).json({ error: "Pick a different category to move the items to." });
+      const target = await prisma.category.findUnique({ where: { id: targetId } });
+      if (!target) return res.status(400).json({ error: "The category you chose to move items to was not found." });
+      await prisma.menuItem.updateMany({ where: { categoryId: id }, data: { categoryId: targetId } });
+    }
+    await prisma.category.delete({ where: { id } });
+    res.json({ success: true, moved: total });
+  } catch (err) {
+    console.error("deleteCategory error:", err);
+    res.status(500).json({ error: "Could not delete the category." });
+  }
 }
 
 // ----- Menu Items -----
@@ -48,7 +97,7 @@ function isStaff(req) {
 // GET /api/menu (public) - supports ?categoryId= and ?available=true
 async function listMenuItems(req, res) {
   const { categoryId, available, brandId } = req.query;
-  const where = {};
+  const where = { isArchived: false };
   if (categoryId) where.categoryId = categoryId;
   if (available === "true") where.isAvailable = true;
   if (brandId) where.brandId = brandId === "house" ? null : brandId;
@@ -57,7 +106,7 @@ async function listMenuItems(req, res) {
 
   const items = await prisma.menuItem.findMany({
     where,
-    include: { category: true, comboGroups: { include: { options: true } }, brand: true },
+    include: { category: true, comboGroups: { include: { options: true } }, brand: true, mealBoxItems: { include: { item: true }, orderBy: { sortOrder: "asc" } } },
     orderBy: { name: "asc" },
   });
   res.json({ items: await attachRatings(items) });
@@ -67,9 +116,9 @@ async function listMenuItems(req, res) {
 async function getMenuItem(req, res) {
   const item = await prisma.menuItem.findUnique({
     where: { id: req.params.id },
-    include: { category: true, comboGroups: { include: { options: true } }, brand: true },
+    include: { category: true, comboGroups: { include: { options: true } }, brand: true, mealBoxItems: { include: { item: true }, orderBy: { sortOrder: "asc" } } },
   });
-  if (!item || (item.approvalStatus !== "APPROVED" && !isStaff(req))) {
+  if (!item || ((item.approvalStatus !== "APPROVED" || item.isArchived) && !isStaff(req))) {
     return res.status(404).json({ error: "Menu item not found." });
   }
   const [withRating] = await attachRatings([item]);
@@ -138,7 +187,8 @@ async function createMenuItem(req, res) {
 // PUT /api/menu/:id (ADMIN)
 async function updateMenuItem(req, res) {
   try {
-    const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo, soldByWeight, minOrderGrams, servesPerUnit, plannerRole } = req.body;
+    const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo, soldByWeight, minOrderGrams, servesPerUnit, plannerRole, stockQty, brandId } = req.body;
+    const before = stockQty !== undefined ? await prisma.menuItem.findUnique({ where: { id: req.params.id }, select: { stockQty: true } }) : null;
     const item = await prisma.menuItem.update({
       where: { id: req.params.id },
       data: {
@@ -154,8 +204,13 @@ async function updateMenuItem(req, res) {
         ...(minOrderGrams !== undefined && { minOrderGrams: Number(minOrderGrams) }),
         ...(servesPerUnit !== undefined && { servesPerUnit: Math.max(1, Number(servesPerUnit) || 1) }),
         ...(plannerRole !== undefined && { plannerRole: ["MAIN", "SWEET", "DRINK"].includes(plannerRole) ? plannerRole : null }),
+        ...(stockQty !== undefined && stockQty !== "" && { stockQty: Math.max(0, Math.floor(Number(stockQty) || 0)) }),
+        ...(brandId !== undefined && { brandId: brandId || null }),
       },
     });
+    if (before && item.stockQty !== before.stockQty) {
+      await prisma.inventoryLog.create({ data: { menuItemId: item.id, changeQty: item.stockQty - before.stockQty, reason: "adjustment" } }).catch(() => {});
+    }
     checkBackInStock(item.id);
     res.json({ item });
   } catch (err) {
@@ -164,10 +219,35 @@ async function updateMenuItem(req, res) {
   }
 }
 
+// Removes a dish. A dish that was never ordered (and is not in a weekly plan) is deleted for good.
+// One that past orders or plans still point at is ARCHIVED instead: it disappears from the shop and the
+// admin lists, but customers' order history and the sales reports keep working.
+async function removeMenuItem(id) {
+  const [orders, plans] = await Promise.all([
+    prisma.orderItem.count({ where: { menuItemId: id } }),
+    prisma.subscription.count({ where: { menuItemId: id } }),
+  ]);
+  if (orders > 0 || plans > 0) {
+    await prisma.menuItem.update({ where: { id }, data: { isArchived: true, isAvailable: false } });
+    return { success: true, archived: true, message: "This item has past orders, so it was removed from the shop but kept in your order history." };
+  }
+  await prisma.$transaction([
+    prisma.favorite.deleteMany({ where: { menuItemId: id } }),
+    prisma.inventoryLog.deleteMany({ where: { menuItemId: id } }),
+    prisma.menuItem.delete({ where: { id } }), // combo groups and meal-box rows go with it
+  ]);
+  return { success: true, archived: false };
+}
+
 // DELETE /api/menu/:id (ADMIN)
 async function deleteMenuItem(req, res) {
-  await prisma.menuItem.delete({ where: { id: req.params.id } });
-  res.json({ success: true });
+  try {
+    res.json(await removeMenuItem(req.params.id));
+  } catch (err) {
+    if (err.code === "P2025") return res.status(404).json({ error: "Item not found." });
+    console.error("deleteMenuItem error:", err);
+    res.status(500).json({ error: "Could not delete this item." });
+  }
 }
 
 // ----- Combo groups (for items where isCombo = true) -----
@@ -242,6 +322,7 @@ async function bulkCreateMenuItems(req, res) {
 }
 
 module.exports = {
+  removeMenuItem,
   itemReviews,
   bestsellers,
   listCategories,

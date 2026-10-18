@@ -8,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // - Android emulator:  http://10.0.2.2:5000
 // - iOS simulator:     http://localhost:5000
 // - Physical device:   http://<your-computer-LAN-IP>:5000  (e.g. 192.168.1.5)
-export const API_URL = "http://10.0.2.2:5000";
+export const API_URL = "https://diplomatic-creativity-production-eebd.up.railway.app";
 
 const TOKEN_KEY = "godelicious_token";
 
@@ -53,6 +53,7 @@ export const api = {
   listCategories: () => request("/api/menu/categories"),
   listMenu: (categoryId) =>
     request(`/api/menu?available=true${categoryId ? `&categoryId=${categoryId}` : ""}`),
+  getMenuItem: (id) => request(`/api/menu/${id}`),
 
   createOrder: (payload) => request("/api/orders", { method: "POST", body: payload }),
   myOrders: () => request("/api/orders/my"),
@@ -79,6 +80,8 @@ export const api = {
 
   // Settings
   getSettings: () => request("/api/settings"),
+  serviceCheck: (latitude, longitude) => request("/api/settings/service-check", { method: "POST", body: { latitude, longitude } }),
+  listMealBoxes: () => request("/api/meal-boxes"),
 
   // Razorpay
   createRazorpayOrder: (orderId) =>
@@ -89,4 +92,63 @@ export const api = {
   // Reviews
   createReview: (orderId, rating, comment) =>
     request("/api/reviews", { method: "POST", body: { orderId, rating, comment } }),
+
+  // Order types (the 3 home-screen package cards) and add-ons for booking
+  listOrderTypes: () => request("/api/order-types"),
+  listAddons: () => request("/api/addons"),
+
+  // Venue booking (venue partners' halls)
+  listVenues: (params = {}) => {
+    const qs = Object.entries(params).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+    return request(`/api/venues${qs ? `?${qs}` : ""}`);
+  },
+  getVenue: (id) => request(`/api/venues/${id}`),
+  requestVenue: (id, payload) => request(`/api/venues/${id}/bookings`, { method: "POST", body: payload }),
+  myVenueRequests: () => request("/api/venues/bookings/my"),
+  cancelVenueRequest: (id) => request(`/api/venues/bookings/${id}/cancel`, { method: "PATCH" }),
+
+  // Push notifications
+  registerDevice: (token, platform) =>
+    request("/api/devices/register", { method: "POST", body: { token, platform } }),
+
+  // Home feed, bestsellers, item reviews
+  home: () => request("/api/home"),
+  bestsellers: (exclude = []) => request(`/api/menu/bestsellers?limit=6${exclude.length ? `&exclude=${exclude.join(",")}` : ""}`),
+  itemReviews: (id) => request(`/api/menu/${id}/reviews`),
+
+  // Favourites
+  myFavorites: () => request("/api/favorites"),
+  myFavoriteIds: () => request("/api/favorites/ids"),
+  addFavorite: (menuItemId) => request("/api/favorites", { method: "POST", body: { menuItemId } }),
+  removeFavorite: (menuItemId) => request(`/api/favorites/${menuItemId}`, { method: "DELETE" }),
+  setFavoriteNotify: (menuItemId, notify) =>
+    request(`/api/favorites/${menuItemId}/notify`, { method: "PATCH", body: { notify } }),
+
+  // Saved addresses
+  myAddresses: () => request("/api/addresses"),
+  addAddress: (payload) => request("/api/addresses", { method: "POST", body: payload }),
+  updateAddress: (id, payload) => request(`/api/addresses/${id}`, { method: "PATCH", body: payload }),
+  deleteAddress: (id) => request(`/api/addresses/${id}`, { method: "DELETE" }),
+
+  // Rewards and referrals
+  myLoyalty: () => request("/api/loyalty/me"),
+  applyReferral: (code) => request("/api/loyalty/apply-referral", { method: "POST", body: { code } }),
+
+  // Party planner
+  planParty: (guests, foodStyle, occasion) =>
+    request("/api/planner/suggest", { method: "POST", body: { guests, foodStyle, occasion } }),
+
+  // Weekly meal box
+  subscriptionPlans: () => request("/api/subscriptions/plans"),
+  mySubscriptions: () => request("/api/subscriptions/my"),
+  createSubscription: (payload) => request("/api/subscriptions", { method: "POST", body: payload }),
+  updateSubscription: (id, payload) => request(`/api/subscriptions/${id}`, { method: "PATCH", body: payload }),
+  skipSubscriptionDay: (id, date) => request(`/api/subscriptions/${id}/skip`, { method: "POST", body: { date } }),
+  unskipSubscriptionDay: (id, date) => request(`/api/subscriptions/${id}/skip/${date}`, { method: "DELETE" }),
+
+  unregisterDevice: (token) => request("/api/devices/register", { method: "DELETE", body: { token } }),
+
+  // Brand partner browsing
+  listBrandsPublic: () => request("/api/brands/public"),
+  listMenuByBrand: (brandId) => request(`/api/menu?available=true&brandId=${brandId}`),
 };

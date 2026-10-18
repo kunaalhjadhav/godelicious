@@ -1,18 +1,25 @@
 const prisma = require("../config/db");
 
+// Banners saved with a relative "/uploads/..." path (older uploads) are turned into full links
+function absolute(req, url) {
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  const proto = (req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
+  return `${process.env.PUBLIC_API_URL ? process.env.PUBLIC_API_URL.replace(/\/+$/, "") : `${proto}://${req.get("host")}`}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 // GET /api/banners (public) - only active ones, in order
 async function listActiveBanners(req, res) {
   const banners = await prisma.banner.findMany({
     where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
   });
-  res.json({ banners });
+  res.json({ banners: banners.map((b) => ({ ...b, mediaUrl: absolute(req, b.mediaUrl) })) });
 }
 
 // GET /api/banners/all (ADMIN) - everything, including inactive
 async function listAllBanners(req, res) {
-  const banners = await prisma.banner.findMany({ orderBy: { sortOrder: "asc" } });
-  res.json({ banners });
+  const banners = await prisma.banner.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] });
+  res.json({ banners: banners.map((b) => ({ ...b, mediaUrl: absolute(req, b.mediaUrl) })) });
 }
 
 // POST /api/banners (ADMIN)

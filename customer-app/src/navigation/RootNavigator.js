@@ -2,7 +2,7 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, View, Text } from "react-native";
 
 import { useAuth } from "../context/AuthContext";
 import { colors } from "../theme";
@@ -19,6 +19,19 @@ import MyEnquiriesScreen from "../screens/MyEnquiriesScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import ChatScreen from "../screens/ChatScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import BookingScreen from "../screens/BookingScreen";
+import ItemDetailScreen from "../screens/ItemDetailScreen";
+import MealBoxesScreen from "../screens/MealBoxesScreen";
+import BrandsScreen from "../screens/BrandsScreen";
+import BrandDetailScreen from "../screens/BrandDetailScreen";
+import VenuesScreen from "../screens/VenuesScreen";
+import VenueDetailScreen from "../screens/VenueDetailScreen";
+import MyVenueRequestsScreen from "../screens/MyVenueRequestsScreen";
+import FavouritesScreen from "../screens/FavouritesScreen";
+import PartySizeScreen from "../screens/PartySizeScreen";
+import SubscribeScreen from "../screens/SubscribeScreen";
+import SavedAddressesScreen from "../screens/SavedAddressesScreen";
+import { useLang } from "../i18n";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -34,6 +47,24 @@ function MenuStack() {
       <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} options={{ title: "My enquiries" }} />
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: "Order status" }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
+      <Stack.Screen name="Booking" component={BookingScreen} options={{ title: "Book this package" }} />
+      <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: "Item details" }} />
+      <Stack.Screen name="MealBoxes" component={MealBoxesScreen} options={{ title: "Meal boxes" }} />
+      <Stack.Screen name="Venues" component={VenuesScreen} options={{ title: "Book a venue" }} />
+      <Stack.Screen
+        name="VenueDetail" component={VenueDetailScreen}
+        options={({ route }) => ({ title: route.params?.venueName || "Venue" })}
+      />
+      <Stack.Screen name="MyVenueRequests" component={MyVenueRequestsScreen} options={{ title: "My venue requests" }} />
+      <Stack.Screen name="Favourites" component={FavouritesScreen} options={{ title: "Favourites" }} />
+      <Stack.Screen name="PartySize" component={PartySizeScreen} options={{ title: "Plan my party" }} />
+      <Stack.Screen name="Subscribe" component={SubscribeScreen} options={{ title: "Weekly meal box" }} />
+      <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} options={{ title: "Saved addresses" }} />
+      <Stack.Screen name="Brands" component={BrandsScreen} options={{ title: "Brand Partners" }} />
+      <Stack.Screen
+        name="BrandDetail" component={BrandDetailScreen}
+        options={({ route }) => ({ title: route.params?.brandName || "Brand" })}
+      />
     </Stack.Navigator>
   );
 }
@@ -48,6 +79,7 @@ function OrdersStack() {
 }
 
 function MainTabs() {
+  const { t } = useLang();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -56,13 +88,25 @@ function MainTabs() {
         tabBarInactiveTintColor: colors.inkFaint,
       }}
     >
-      <Tab.Screen name="MenuTab" component={MenuStack} options={{ title: "Menu" }} />
-      <Tab.Screen name="OrdersTab" component={OrdersStack} options={{ title: "Orders" }} />
+      <Tab.Screen
+        name="MenuTab" component={MenuStack}
+        options={{ title: t("tab_menu"), tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🍽️</Text> }}
+      />
+      <Tab.Screen
+        name="OrdersTab" component={OrdersStack}
+        options={{ title: t("tab_orders"), tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📦</Text> }}
+      />
       <Tab.Screen
         name="ChatTab" component={ChatScreen}
-        options={{ title: "Chat", headerShown: true, headerStyle: { backgroundColor: colors.charcoal }, headerTintColor: colors.paper, headerTitle: "Chat with us" }}
+        options={{
+          title: t("tab_chat"), headerShown: true, headerStyle: { backgroundColor: colors.charcoal }, headerTintColor: colors.paper, headerTitle: "Chat with us",
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💬</Text>,
+        }}
       />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: "Profile" }} />
+      <Tab.Screen
+        name="ProfileTab" component={ProfileScreen}
+        options={{ title: t("tab_profile"), tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text> }}
+      />
     </Tab.Navigator>
   );
 }
