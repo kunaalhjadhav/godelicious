@@ -13,17 +13,17 @@ export default function Nav() {
   const { itemCount } = useCart();
 
   const linkClass = (active) =>
-    `flex items-center gap-1.5 transition-colors ${active ? "text-saffron" : "text-white/70 hover:text-white"}`;
+    `flex items-center gap-1.5 whitespace-nowrap transition-colors ${active ? "text-saffron" : "text-white/70 hover:text-white"}`;
 
   return (
     <header className="bg-charcoal/95 backdrop-blur text-paper sticky top-0 z-40 border-b border-white/5">
-      <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 font-display text-xl tracking-tight shrink-0">
           <img src="/logo.png?v=3" alt="" className="w-9 h-9 rounded-lg bg-paper p-0.5" />
           {APP_NAME}
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6 text-sm">
+        <nav className="hidden md:flex items-center gap-5 text-sm whitespace-nowrap">
           <Link href="/" className={linkClass(pathname === "/")}>
             Menu
           </Link>
@@ -45,7 +45,7 @@ export default function Nav() {
                 My orders
               </Link>
               <Link href="/notifications" className={linkClass(pathname?.startsWith("/notifications"))}>
-                <Bell size={15} /> Notifications
+                <Bell size={15} /> Alerts
               </Link>
             </>
           )}
