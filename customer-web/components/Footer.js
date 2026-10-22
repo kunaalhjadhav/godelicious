@@ -11,6 +11,7 @@ export default function Footer() {
           <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
           <Link href="/terms" className="hover:text-white">Terms of Service</Link>
           <Link href="/refund-policy" className="hover:text-white">Refund & Cancellation</Link>
+          <Link href="/delete-account" className="hover:text-white">Delete account</Link>
         </div>
       </div>
     </footer>

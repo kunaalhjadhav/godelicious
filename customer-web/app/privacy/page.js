@@ -1,139 +1,140 @@
-"use client";
-
 import Nav from "@/components/Nav";
-import { APP_NAME } from "@/lib/brand";
+import Footer from "@/components/Footer";
+import {
+  APP_NAME, BUSINESS_NAME, BUSINESS_ADDRESS, CONTACT_PHONE, CONTACT_EMAIL, GRIEVANCE_OFFICER,
+} from "@/lib/brand";
+
+export const metadata = { title: `Privacy Policy - ${APP_NAME}` };
+
+const H = ({ children }) => <h2 className="font-display text-xl text-ink mb-2">{children}</h2>;
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-paper flex flex-col">
       <Nav />
-      <div className="max-w-2xl mx-auto px-5 py-10">
-        <div className="bg-saffron/10 border-l-2 border-saffron2 px-4 py-3 mb-8 text-sm text-ink">
-          <strong>Draft document.</strong> This is a starting template, not legal advice. Have it
-          reviewed by a qualified professional for your jurisdiction before relying on it, and
-          replace every <code>[bracketed placeholder]</code> below with your actual details.
-        </div>
-
+      <div className="max-w-2xl mx-auto px-5 py-10 flex-1">
         <h1 className="font-display text-3xl text-ink mb-2">Privacy Policy</h1>
-        <p className="text-sm text-ink/50 mb-8">Last updated: [DATE]</p>
+        <p className="text-sm text-ink/50 mb-8">Last updated: 23 October 2026</p>
 
-        <div className="prose-legal space-y-6 text-sm text-ink/80 leading-relaxed">
+        <div className="space-y-6 text-sm text-ink/80 leading-relaxed">
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">1. Who we are</h2>
+            <H>1. Who we are</H>
             <p>
-              {APP_NAME} ("we," "us," "our") operates this website and mobile application
-              (together, the "Platform"), through which you can order food, book catering
-              services, and purchase items from independent brand partners who sell through our
-              Platform. This policy explains what personal information we collect, how we use it,
-              and the choices you have.
+              {APP_NAME} is operated by {BUSINESS_NAME} ("we", "us"). We run this website and the {APP_NAME} mobile
+              app (together, the "Platform") for ordering meal boxes, catering and food, booking event venues, and
+              weekly meal boxes, with delivery in and around Mysuru, Karnataka.
             </p>
             <p className="mt-2">
-              Registered business name: [YOUR LEGAL BUSINESS NAME]<br />
-              Registered address: [YOUR BUSINESS ADDRESS]<br />
-              Contact email: [YOUR CONTACT EMAIL]
+              {BUSINESS_NAME}<br />
+              {BUSINESS_ADDRESS}<br />
+              Phone: {CONTACT_PHONE}
+              {CONTACT_EMAIL ? <><br />Email: {CONTACT_EMAIL}</> : null}
+            </p>
+            <p className="mt-2">
+              This policy explains what personal information we collect, why, who we share it with, and the choices you
+              have. By using the Platform you agree to it. It is written to follow the Information Technology Act, 2000,
+              the rules made under it, and India's Digital Personal Data Protection Act, 2023.
             </p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">2. Information we collect</h2>
-            <p>We collect the following categories of information:</p>
-            <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li><strong>Account information:</strong> name, email address, phone number, and password (stored as a secure hash, never in plain text).</li>
-              <li><strong>Order information:</strong> delivery/event address, order contents, order history, event date/time/guest count for bookings.</li>
-              <li><strong>Location information:</strong> if you choose to use "use my current location" at checkout, we collect your device's GPS coordinates at that moment. We do not track your location in the background.</li>
-              <li><strong>Payment information:</strong> we do not store your card, UPI, or bank details ourselves — payments are processed by our payment partner, Razorpay, under their own privacy and security practices.</li>
-              <li><strong>Communications:</strong> messages you send through our in-app chat with our support team, and reviews you submit.</li>
-              <li><strong>Usage information:</strong> pages visited, actions taken, and device/browser information, collected automatically to help us operate and improve the Platform.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="font-display text-xl text-ink mb-2">3. How we use your information</h2>
+            <H>2. Information we collect</H>
             <ul className="list-disc pl-5 space-y-1">
-              <li>To create and manage your account</li>
-              <li>To process, fulfill, and deliver your orders and bookings</li>
-              <li>To process payments (via Razorpay) and prevent fraud</li>
-              <li>To communicate with you about your orders, and to respond to support requests</li>
-              <li>To send you offers or promotional notifications, where you have not opted out</li>
-              <li>To operate our brand-partner marketplace, including sharing your name, phone
-                number, and order details with the specific brand partner(s) whose items you
-                ordered, solely so they can prepare and fulfill that order</li>
-              <li>To improve, secure, and maintain the Platform</li>
+              <li><strong>Account details:</strong> name, phone number, email address, and your password (stored only as a secure hash). If you sign in with a phone number, we send a one-time code (OTP) by SMS.</li>
+              <li><strong>Orders and bookings:</strong> items ordered, delivery address, contact phone, delivery date and time, guest count, notes, coupon used, order status, and order history. For weekly boxes, your plan, address and delivery days.</li>
+              <li><strong>Location:</strong> if you tap "use my current location" or pick a place on the map, we collect your device's coordinates at that moment, and save the coordinates with your delivery address. We use them to check that your address is inside our delivery area (within 20 km of Mysuru) and for delivery. We do not track your location in the background.</li>
+              <li><strong>Saved addresses, favourites, reward points and referrals:</strong> addresses you save, dishes you mark as favourites, reward points you earn or use, and your referral code and who you referred.</li>
+              <li><strong>Messages and reviews:</strong> chats with our support team and ratings or reviews you write.</li>
+              <li><strong>Venue enquiries:</strong> details you submit when you enquire about or request a venue.</li>
+              <li><strong>Device information:</strong> a notification token for your device (so we can send order updates), and basic technical information such as app version and browser type.</li>
+              <li><strong>Payments:</strong> we do <strong>not</strong> see or store your card, UPI or bank details. Payments are handled by Razorpay. We receive only the payment status and payment reference.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">4. Who we share information with</h2>
+            <H>3. How we use your information</H>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Razorpay</strong> (payment processing)</li>
-              <li><strong>[YOUR SMS PROVIDER]</strong> (sending OTP codes for phone login, if enabled)</li>
-              <li><strong>Cloudinary</strong> (secure storage of images/videos uploaded to the Platform)</li>
-              <li><strong>Brand partners</strong>, limited to order details necessary for them to
-                fulfill items you've ordered from them</li>
-              <li>Law enforcement or regulators, where required by applicable law</li>
+              <li>To create and run your account, and to sign you in</li>
+              <li>To take, prepare and deliver your orders, and to run weekly boxes and venue requests</li>
+              <li>To check that your address is inside our delivery area</li>
+              <li>To take payment, apply coupons and reward points, and prevent fraud</li>
+              <li>To send order updates, delivery alerts and support replies (SMS, notifications, WhatsApp)</li>
+              <li>To send offers, only where you have not opted out</li>
+              <li>To fix problems, improve the Platform, and keep it secure</li>
+              <li>To meet legal duties, such as tax and accounting records</li>
             </ul>
-            <p className="mt-2">We do not sell your personal information to third parties.</p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">5. Data security</h2>
+            <H>4. Who we share it with</H>
+            <p>We do not sell your personal information. We share it only as needed with:</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2">
+              <li><strong>Razorpay:</strong> to take online payments.</li>
+              <li><strong>Brand partners and venue partners:</strong> the name, phone number, address and order details needed to prepare, deliver or host your order or booking. We may alert them by app notification or WhatsApp.</li>
+              <li><strong>Google:</strong> Google Maps is used to show the map, pick a location and turn coordinates into an address. Location coordinates you choose are sent to Google for that.</li>
+              <li><strong>Firebase Cloud Messaging (Google):</strong> to deliver push notifications to your device.</li>
+              <li><strong>SMS and WhatsApp providers (such as TextLocal and Meta's WhatsApp Business):</strong> to send one-time codes and order alerts.</li>
+              <li><strong>Hosting and storage providers:</strong> our servers and database are hosted with cloud providers (such as Render and Supabase) and images may be stored with Cloudinary. They process data on our behalf.</li>
+              <li><strong>Authorities:</strong> where the law requires it.</li>
+            </ul>
+          </section>
+
+          <section>
+            <H>5. Security</H>
             <p>
-              We use industry-standard measures to protect your information, including encrypted
-              connections (HTTPS), hashed passwords, and access controls limiting who can view
-              your data internally. No system is completely secure, and we cannot guarantee
-              absolute security.
+              We use encrypted connections (HTTPS), hashed passwords, and limit who can see your data. No system is
+              perfectly secure, so we cannot promise absolute security. If you think your account has been misused,
+              please contact us straight away.
             </p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">6. Data retention</h2>
+            <H>6. How long we keep it</H>
             <p>
-              We retain your account and order information for as long as your account is active,
-              and for a reasonable period afterward as required for accounting, legal, or dispute
-              resolution purposes. You may request deletion of your account as described below.
+              We keep your account and order information while your account is active. After you ask us to delete your
+              account, we delete or anonymise your personal information, but we may keep order and payment records for as
+              long as the law requires (for example for tax and accounting) and to deal with disputes.
             </p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">7. Your rights</h2>
+            <H>7. Your choices and rights</H>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>See and update your details in your profile.</li>
+              <li>Opt out of offers and notifications in your notification settings or your phone's settings.</li>
+              <li>Withdraw permission for location in your phone settings at any time. You can still type your address, but orders must be inside our delivery area.</li>
+              <li>Ask us for a copy of your data, to correct it, or to delete your account. See <a className="text-saffron2 underline" href="/delete-account">how to delete your account</a>.</li>
+            </ul>
+          </section>
+
+          <section>
+            <H>8. Cookies and local storage</H>
             <p>
-              You may request access to, correction of, or deletion of your personal information
-              by contacting us at [YOUR CONTACT EMAIL]. You may also update most of your account
-              details directly from your profile, and opt out of promotional notifications from
-              the Notifications settings.
+              The website uses your browser's local storage (not third-party advertising cookies) to keep you signed in and
+              to remember your cart. We do not show ads and we do not run advertising trackers.
             </p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">8. Cookies and local storage</h2>
-            <p>
-              We use browser local storage (not third-party tracking cookies) to keep you signed
-              in and to remember items in your cart between visits.
-            </p>
+            <H>9. Children</H>
+            <p>The Platform is for people aged 18 and over. We do not knowingly collect information from children under 18.</p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">9. Children's privacy</h2>
-            <p>
-              The Platform is not directed at children under 18. We do not knowingly collect
-              personal information from children.
-            </p>
+            <H>10. Changes to this policy</H>
+            <p>When we change this policy we update the date at the top. If a change is significant we will tell you in the app or on the website.</p>
           </section>
 
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">10. Changes to this policy</h2>
+            <H>11. Contact and grievances</H>
             <p>
-              We may update this policy from time to time. Material changes will be reflected by
-              updating the "Last updated" date above.
+              For any question, request or complaint about your data, contact our grievance officer, {GRIEVANCE_OFFICER}, at {BUSINESS_NAME},
+              {" "}{BUSINESS_ADDRESS}. Phone: {CONTACT_PHONE}.{CONTACT_EMAIL ? ` Email: ${CONTACT_EMAIL}.` : ""} We aim to reply within 7 days.
             </p>
-          </section>
-
-          <section>
-            <h2 className="font-display text-xl text-ink mb-2">11. Contact us</h2>
-            <p>Questions about this policy: [YOUR CONTACT EMAIL]</p>
           </section>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
