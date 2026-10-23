@@ -1,4 +1,5 @@
 "use client";
+import { api2 } from "@/lib/api2";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -86,11 +87,22 @@ export default function LocationPickerMap({ initialLat, initialLng, onLocationSe
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
     }
+    if (!address) {
+      // Browser-side Google geocoding failed (key restrictions / billing) — ask our backend instead.
+      try {
+        const d = await api2.placesReverse(lat, lng);
+        address = d.address || null;
+      } catch (_) {}
+    }
     onLocationSelected({ latitude: lat, longitude: lng, address });
   }
 
   if (loadError) {
-    return <p className="text-xs text-chili py-2">{loadError}</p>;
+    return (
+      <p className="text-xs text-ink/60 bg-paper border border-line px-3 py-2 mb-3">
+        The map isn't available right now. Type your address above and pick a suggestion, or use "Use my current location".
+      </p>
+    );
   }
 
   return (

@@ -38,6 +38,7 @@ const loyaltyRoutes = require("./routes/loyalty.routes");
 const plannerRoutes = require("./routes/planner.routes");
 const subscriptionsRoutes = require("./routes/subscriptions.routes");
 const mealBoxesRoutes = require("./routes/mealboxes.routes");
+const placesRoutes = require("./routes/places.routes");
 const { startScheduler } = require("./services/subscription.service");
 
 const app = express();
@@ -141,6 +142,7 @@ app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/planner", plannerRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/meal-boxes", mealBoxesRoutes);
+app.use("/api/places", placesRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));
