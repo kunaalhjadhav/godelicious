@@ -79,6 +79,17 @@ export default function HomePage() {
 
       <OrderTypesSection />
 
+      <section className="max-w-5xl mx-auto px-5 pt-4">
+        <Link href="/plan-party" className="flex items-center justify-between gap-4 rounded-lg px-5 py-4 text-white"
+          style={{ background: "linear-gradient(135deg, #064e2b 0%, #0f8a4b 55%, #34c26b 100%)" }}>
+          <div>
+            <div className="font-display text-lg">Planning a party?</div>
+            <div className="text-sm text-white/85">Pick your dishes for any number of guests and check out.</div>
+          </div>
+          <span className="bg-white text-[#0b6b3a] font-semibold text-sm px-4 py-2 rounded-full shrink-0">Plan my party</span>
+        </Link>
+      </section>
+
       {mealBoxes?.boxes?.length > 0 && (
         <section className="max-w-5xl mx-auto px-5 pt-6">
           <div className="flex items-baseline justify-between mb-1">

@@ -7,6 +7,8 @@ import Script from "next/script";
 import { MapPin, CheckCircle2, Map as MapIcon } from "lucide-react";
 import Nav from "@/components/Nav";
 import LocationPickerMap from "@/components/LocationPickerMap";
+import AddressSuggestions from "@/components/AddressSuggestions";
+import { useAddressSearch } from "@/lib/useAddressSearch";
 import { api, API_URL } from "@/lib/api";
 import { api2 } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
@@ -114,35 +116,24 @@ export default function BookingPage() {
   // Reverse-geocodes lat/lng into a human-readable address via Google's
   // Geocoding API. Needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY set — without it,
   // this silently no-ops and the address field is left for manual entry.
-  function loadGoogleMaps() {
-    if (window.google?.maps) return Promise.resolve();
-    if (window.__gmapsLoadingPromise) return window.__gmapsLoadingPromise;
-    window.__gmapsLoadingPromise = new Promise((resolve, reject) => {
-      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-      if (!key) { reject(new Error("Google Maps API key is not configured")); return; }
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}`;
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = () => reject(new Error("Google Maps script failed to load — check your API key and that Maps JavaScript API is enabled"));
-      document.head.appendChild(script);
-    });
-    return window.__gmapsLoadingPromise;
-  }
-
+  // Reverse-geocode through our backend (Google if configured, else OpenStreetMap) — no browser-side key needed.
   async function reverseGeocode(lat, lng) {
     try {
-      await loadGoogleMaps();
-      const geocoder = new window.google.maps.Geocoder();
-      const result = await geocoder.geocode({ location: { lat, lng } });
-      const address = result.results?.[0]?.formatted_address || null;
-      if (!address) return { address: null, error: "No address found for this location." };
-      return { address, error: null };
+      const d = await api2.placesReverse(lat, lng);
+      if (!d.address) return { address: null, error: "No address found for this location." };
+      return { address: d.address, error: null };
     } catch (err) {
       console.error("Reverse geocoding failed:", err);
       return { address: null, error: err.message || "Reverse geocoding failed." };
     }
   }
+
+  const addrSearch = useAddressSearch({
+    onPick: ({ address: a, latitude, longitude }) => {
+      setAddress(a);
+      if (latitude != null) setCoords({ latitude, longitude });
+    },
+  });
 
   function useMyLocation() {
     if (!navigator.geolocation) {
@@ -343,10 +334,11 @@ export default function BookingPage() {
 
           <label className="block text-xs font-mono uppercase tracking-wide text-ink/60 mb-1">Venue address</label>
           <textarea
-            required value={address} onChange={(e) => setAddress(e.target.value)} rows={2}
+            required value={address} onChange={(e) => { setAddress(e.target.value); addrSearch.search(e.target.value, coords); }} rows={2}
             placeholder="Full address of the event location"
             className="field-input mb-2"
           />
+          <AddressSuggestions suggestions={addrSearch.suggestions} searching={addrSearch.searching} onPick={addrSearch.pick} />
           <button
             type="button" onClick={useMyLocation} disabled={locating}
             className="inline-flex items-center gap-1 text-xs text-saffron2 hover:underline mb-3 disabled:opacity-50 mr-4"

@@ -20,6 +20,10 @@ export const api2 = {
   serviceCheck: (latitude, longitude) => request("/api/settings/service-check", { method: "POST", body: { latitude, longitude } }),
   home: () => request("/api/home"),
   getSettings: () => request("/api/settings"),
+  listBanners: () => request("/api/banners"),
+  listCategories: () => request("/api/menu/categories"),
+  listMenuAll: () => request("/api/menu?available=true"),
+  planParty: (guests, foodStyle, occasion) => request("/api/planner/suggest", { method: "POST", body: { guests, foodStyle, occasion } }),
   // Address search / autofill (served by our backend; works with or without a Google key)
   placesAutocomplete: (q, lat, lng) =>
     request(`/api/places/autocomplete?q=${encodeURIComponent(q)}${lat != null ? `&lat=${lat}&lng=${lng}` : ""}`),

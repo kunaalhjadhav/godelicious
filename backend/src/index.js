@@ -96,6 +96,7 @@ app.use("/api/brand-partners/register", authLimiter);
 app.use("/api/venues/register", authLimiter);
 
 app.use(express.json());
+app.use(require("./utils/publicUrl").rewriteUploadUrls); // old upload links always point at this server
 app.use(morgan("dev"));
 
 // Never let a browser or the app reuse an old answer for data that the admin edits
