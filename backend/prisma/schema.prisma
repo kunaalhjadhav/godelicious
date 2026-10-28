@@ -341,6 +341,7 @@ model Order {
   deliveryFee      Float         @default(0)
   gstAmount        Float         @default(0) // 5% GST added on top of (items - discount); 0 on older orders (GST was included)
   pointsUsed       Int           @default(0)
+  source           String?       // where the customer came from: instagram, google, app, direct ... (UTM or app)
   pointsDiscount   Float         @default(0)
   subscriptionId   String?
   subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
@@ -527,6 +528,7 @@ model OtpCode {
 // dedicated key-value config table for a handful of fields.
 model AppSettings {
   id              String   @id @default("singleton")
+  botEnabled      Boolean  @default(false) // WhatsApp / Instagram reply assistant (Admin > Conversations)
   minOrderAmount  Float    @default(0)
   codEnabled      Boolean  @default(true)
   staffPricePerPerson  Float @default(0) // charged per staff member requested on a booking
@@ -697,4 +699,50 @@ model VenueBlock {
   venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
   date      DateTime
   reason    String?
+}
+
+
+// Content drafted by the AI marketing assistant (Admin > Marketing). Nothing is published
+// automatically: the owner edits, approves and posts each item by hand.
+model MarketingDraft {
+  id         String   @id @default(uuid())
+  channel    String   // INSTAGRAM | FACEBOOK | GOOGLE | YOUTUBE | WHATSAPP
+  kind       String   @default("POST") // POST | REEL | GOOGLE_POST | SHORT | BROADCAST
+  language   String   @default("en") // en | kn | both
+  title      String?
+  body       String
+  hashtags   String?
+  visualIdea String?
+  status     String   @default("DRAFT") // DRAFT | APPROVED | POSTED
+  batchId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+
+// WhatsApp / Instagram conversations handled by the reply assistant, with a person able to take over.
+model BotConversation {
+  id            String       @id @default(uuid())
+  channel       String       // WHATSAPP | INSTAGRAM
+  contactId     String       // phone digits (WhatsApp) or Instagram-scoped user id
+  contactName   String?
+  status        String       @default("BOT") // BOT | NEEDS_HUMAN | HUMAN | CLOSED
+  needsReason   String?
+  lastMessageAt DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  messages      BotMessage[]
+
+  @@unique([channel, contactId])
+}
+
+model BotMessage {
+  id             String          @id @default(uuid())
+  conversationId String
+  conversation   BotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         String          // CUSTOMER | BOT | HUMAN
+  text           String
+  externalId     String?         @unique // WhatsApp / Instagram message id, so webhook retries are ignored
+  createdAt      DateTime        @default(now())
+
+  @@index([conversationId, createdAt])
 }

@@ -39,6 +39,8 @@ const plannerRoutes = require("./routes/planner.routes");
 const subscriptionsRoutes = require("./routes/subscriptions.routes");
 const mealBoxesRoutes = require("./routes/mealboxes.routes");
 const placesRoutes = require("./routes/places.routes");
+const marketingRoutes = require("./routes/marketing.routes");
+const botRoutes = require("./routes/bot.routes");
 const { startScheduler } = require("./services/subscription.service");
 
 const app = express();
@@ -95,7 +97,8 @@ app.use("/api/auth", authLimiter);
 app.use("/api/brand-partners/register", authLimiter);
 app.use("/api/venues/register", authLimiter);
 
-app.use(express.json());
+// rawBody is kept so Meta's webhook signature can be verified
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(require("./utils/publicUrl").rewriteUploadUrls); // old upload links always point at this server
 app.use(morgan("dev"));
 
@@ -144,6 +147,8 @@ app.use("/api/planner", plannerRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
 app.use("/api/meal-boxes", mealBoxesRoutes);
 app.use("/api/places", placesRoutes);
+app.use("/api/marketing", marketingRoutes);
+app.use("/api/bot", botRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));

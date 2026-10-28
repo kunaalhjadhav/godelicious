@@ -10,7 +10,7 @@ import LocationPickerMap from "@/components/LocationPickerMap";
 import AddressSuggestions from "@/components/AddressSuggestions";
 import { useAddressSearch } from "@/lib/useAddressSearch";
 import { api, API_URL } from "@/lib/api";
-import { api2 } from "@/lib/api2";
+import { api2, getSource } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
 
 function resolveUrl(url) {
@@ -223,7 +223,7 @@ export default function BookingPage() {
         couponCode: couponStatus?.discountAmount ? couponCode.trim() : undefined,
         paymentMethod,
       };
-      const { order } = await api.createOrder(payload);
+      const { order } = await api.createOrder({ ...payload, source: getSource() });
 
       if (paymentMethod === "COD") {
         router.push(`/orders/${order.id}`);

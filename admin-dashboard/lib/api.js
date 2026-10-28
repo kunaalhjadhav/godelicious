@@ -249,4 +249,19 @@ export const api = {
   // Admin: venue partners
   listAllVenues: () => request("/api/venues/admin/all"),
   updateVenueAdmin: (id, payload) => request(`/api/venues/admin/${id}`, { method: "PATCH", body: payload }),
+
+  // Marketing assistant
+  listMarketingDrafts: (status) => request(`/api/marketing/drafts${status ? `?status=${status}` : ""}`),
+  generateMarketing: (payload) => request("/api/marketing/generate", { method: "POST", body: payload }),
+  updateMarketingDraft: (id, payload) => request(`/api/marketing/drafts/${id}`, { method: "PATCH", body: payload }),
+  deleteMarketingDraft: (id) => request(`/api/marketing/drafts/${id}`, { method: "DELETE" }),
+  marketingSources: (days = 30) => request(`/api/marketing/sources?days=${days}`),
+  marketingSummary: (days = 7) => request("/api/marketing/summary", { method: "POST", body: { days } }),
+  // Reply assistant
+  botStatus: () => request("/api/bot/status"),
+  botSetEnabled: (enabled) => request("/api/bot/enabled", { method: "PATCH", body: { enabled } }),
+  botConversations: (status) => request(`/api/bot/conversations${status ? `?status=${status}` : ""}`),
+  botConversation: (id) => request(`/api/bot/conversations/${id}`),
+  botReply: (id, text) => request(`/api/bot/conversations/${id}/reply`, { method: "POST", body: { text } }),
+  botSetStatus: (id, status) => request(`/api/bot/conversations/${id}`, { method: "PATCH", body: { status } }),
 };

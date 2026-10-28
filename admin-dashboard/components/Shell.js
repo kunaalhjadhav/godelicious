@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ClipboardList, Boxes, Utensils, PlusSquare, Warehouse, CalendarHeart,
   Tag, Tags, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
-  SlidersHorizontal, LogOut, Truck, ShieldCheck, Building2, Repeat, PackageOpen,
+  SlidersHorizontal, LogOut, Truck, ShieldCheck, Building2, Repeat, PackageOpen, Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
@@ -47,6 +47,8 @@ const NAV_GROUPS = [
     items: [
       { href: "/coupons", label: "Coupons", icon: Tag },
       { href: "/banners", label: "Banners", icon: ImageIcon },
+      { href: "/marketing", label: "AI Marketing", icon: Sparkles },
+      { href: "/conversations", label: "Conversations", icon: MessageCircle },
       { href: "/notifications", label: "Notifications", icon: Bell },
     ],
   },

@@ -9,7 +9,7 @@ import AddressSuggestions from "@/components/AddressSuggestions";
 import { useAddressSearch } from "@/lib/useAddressSearch";
 import { MapPin, CheckCircle2, Map as MapIcon } from "lucide-react";
 import { api } from "@/lib/api";
-import { api2 } from "@/lib/api2";
+import { api2, getSource } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
 import { useCart } from "@/lib/useCart";
 import { APP_NAME } from "@/lib/brand";
@@ -212,7 +212,7 @@ export default function CheckoutPage() {
         couponCode: couponStatus?.discountAmount ? couponCode.trim() : undefined,
         paymentMethod,
       };
-      const { order } = await api.createOrder(payload);
+      const { order } = await api.createOrder({ ...payload, source: getSource() });
 
       if (paymentMethod === "COD") {
         clearCart();

@@ -20,16 +20,26 @@ const MIN_LEAD_HOURS = 15;
 // Combines the date-only eventDate with a "H:MM AM/PM" eventTime string into
 // one real Date/time — needed since they arrive as two separate fields.
 function parseEventDateTime(eventDateStr, eventTimeStr) {
-  const date = new Date(eventDateStr);
-  const match = eventTimeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return date;
-  let [, h, m, period] = match;
-  h = parseInt(h, 10);
-  m = parseInt(m, 10);
-  if (period.toUpperCase() === "PM" && h !== 12) h += 12;
-  if (period.toUpperCase() === "AM" && h === 12) h = 0;
-  date.setHours(h, m, 0, 0);
-  return date;
+  // Delivery times are Indian Standard Time (UTC+5:30), whatever time zone the server runs in.
+  const IST_OFFSET_MIN = 330;
+  let ymd;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(eventDateStr))) ymd = String(eventDateStr);
+  else {
+    const t = new Date(eventDateStr);
+    if (isNaN(t)) return t;
+    const ist = new Date(t.getTime() + IST_OFFSET_MIN * 60000); // the calendar day in India
+    ymd = ist.toISOString().slice(0, 10);
+  }
+  const [y, mo, d] = ymd.split("-").map(Number);
+  const match = String(eventTimeStr || "").match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  let h = 0, m = 0;
+  if (match) {
+    h = parseInt(match[1], 10);
+    m = parseInt(match[2], 10);
+    if (match[3].toUpperCase() === "PM" && h !== 12) h += 12;
+    if (match[3].toUpperCase() === "AM" && h === 12) h = 0;
+  }
+  return new Date(Date.UTC(y, mo - 1, d, h, m) - IST_OFFSET_MIN * 60000);
 }
 
 // body: { items?: [{ menuItemId, quantity, selectedOptions? }], deliveryAddress, contactPhone,
@@ -38,11 +48,17 @@ function parseEventDateTime(eventDateStr, eventTimeStr) {
 // `items` is optional: a booking (Meal Box / Delivery Box / Catering Order) can be placed
 // with just an orderType + staff/addons and no à la carte menu items. eventDate/eventTime
 // are required on every order — see the 15-hour lead time check below.
+// Where the customer came from (utm_source or "app"): letters, digits and - _ : only, so it is safe to group by.
+function cleanSource(v) {
+  const t = String(v || "").toLowerCase().replace(/[^a-z0-9_:\-]/g, "").slice(0, 60);
+  return t || null;
+}
+
 async function createOrder(req, res) {
   const {
     items, deliveryAddress, contactPhone, notes,
     couponCode, eventDate, eventTime, guestCount, latitude, longitude,
-    paymentMethod, orderTypeId, needsStaff, staffCount, addons, usePoints,
+    paymentMethod, orderTypeId, needsStaff, staffCount, addons, usePoints, source,
   } = req.body;
 
   const itemLines = Array.isArray(items) ? items : [];
@@ -256,6 +272,7 @@ async function createOrder(req, res) {
           deliveryFee,
           pointsUsed,
           pointsDiscount,
+          source: cleanSource(source),
           items: { create: orderItemsData },
           addons: { create: orderAddonsData },
           events: { create: [{ status: "PENDING" }] },

@@ -1,6 +1,7 @@
 import "./globals.css";
 import Providers from "./providers";
 import MobileTabs from "@/components/MobileTabs";
+import SourceCapture from "@/components/SourceCapture";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 export const metadata = {
@@ -33,7 +34,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="font-body">
-        <Providers>{children}<MobileTabs /></Providers>
+        <Providers><SourceCapture />{children}<MobileTabs /></Providers>
       </body>
     </html>
   );
