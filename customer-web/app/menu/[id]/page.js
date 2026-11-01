@@ -27,7 +27,7 @@ export default function MenuItemDetailPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.getMenuItem(id).then((d) => setItem(d.item)).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    api.getMenuItem(id).then((d) => { setItem(d.item); if (d.item?.soldByWeight) setGrams(Math.max(250, d.item.minOrderGrams || 250)); }).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, [id]);
 
   const { addItem, items: cartItems } = useCart();
@@ -81,6 +81,7 @@ export default function MenuItemDetailPage() {
     );
   }
 
+  const minG = item?.minOrderGrams > 0 ? item.minOrderGrams : 250;
   const weightTotal = item?.soldByWeight ? ((item.price / 1000) * grams).toFixed(0) : null;
 
   return (
@@ -171,14 +172,14 @@ export default function MenuItemDetailPage() {
                 <label className="field-label">Quantity (grams)</label>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setGrams((g) => Math.max(250, g - 250))}
+                    onClick={() => setGrams((g) => Math.max(minG, g - 250))}
                     className="w-9 h-9 rounded-sm bg-line text-ink flex items-center justify-center"
                   >
                     <Minus size={16} />
                   </button>
                   <input
-                    type="number" value={grams} step={250} min={250}
-                    onChange={(e) => setGrams(Math.max(250, Number(e.target.value)))}
+                    type="number" value={grams} step={250} min={minG}
+                    onChange={(e) => setGrams(Math.max(minG, Number(e.target.value)))}
                     className="field-input w-28 text-center"
                   />
                   <button

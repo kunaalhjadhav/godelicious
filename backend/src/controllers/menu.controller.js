@@ -172,7 +172,7 @@ async function createMenuItem(req, res) {
         isCombo: isCombo !== undefined ? Boolean(isCombo) : false,
         brandId: brandId || null,
         soldByWeight: soldByWeight !== undefined ? Boolean(soldByWeight) : false,
-        minOrderGrams: minOrderGrams !== undefined ? Number(minOrderGrams) : 1000,
+        minOrderGrams: minOrderGrams !== undefined ? Number(minOrderGrams) : 250,
         servesPerUnit: servesPerUnit ? Math.max(1, Number(servesPerUnit)) : 1,
         plannerRole: ["MAIN", "SWEET", "DRINK"].includes(plannerRole) ? plannerRole : null,
       },

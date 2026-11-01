@@ -82,7 +82,7 @@ export default function MenuPage() {
     try {
       const payload = {
         ...form, price: Number(form.price), stockQty: Number(form.stockQty || 0),
-        plannerRole: form.plannerRole || null, minOrderGrams: form.minOrderGrams ? Number(form.minOrderGrams) : 1000, servesPerUnit: form.servesPerUnit ? Number(form.servesPerUnit) : 1,
+        plannerRole: form.plannerRole || null, minOrderGrams: form.minOrderGrams ? Number(form.minOrderGrams) : 250, servesPerUnit: form.servesPerUnit ? Number(form.servesPerUnit) : 1,
       };
       if (editingId) {
         await api.updateMenuItem(editingId, payload);
@@ -113,7 +113,7 @@ export default function MenuPage() {
       soldByWeight: item.soldByWeight || false,
       plannerRole: item.plannerRole || "",
       servesPerUnit: item.servesPerUnit && item.servesPerUnit > 1 ? item.servesPerUnit : "",
-      minOrderGrams: item.soldByWeight ? item.minOrderGrams || 1000 : "",
+      minOrderGrams: item.soldByWeight ? item.minOrderGrams || 250 : "",
     });
     // bring the form into view so it is obvious that editing has started
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -305,7 +305,7 @@ export default function MenuPage() {
                 <input
                   type="number" min="100" step="50" value={form.minOrderGrams}
                   onChange={(e) => setForm({ ...form, minOrderGrams: e.target.value })}
-                  placeholder="1000"
+                  placeholder="250"
                   className="w-full px-3 py-2 border border-line rounded-sm text-sm"
                 />
               </div>
