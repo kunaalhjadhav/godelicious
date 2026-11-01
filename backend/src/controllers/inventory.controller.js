@@ -1,15 +1,21 @@
+const { ensureFoodCodes } = require("../utils/foodCode");
 const { checkBackInStock } = require("../services/backInStock.service");
 const prisma = require("../config/db");
 
 // GET /api/inventory (ADMIN/STAFF) - current stock levels for every menu item
 async function listInventory(req, res) {
+  await ensureFoodCodes(prisma).catch((e) => console.error("foodCode backfill:", e.message));
   const items = await prisma.menuItem.findMany({
     where: { isArchived: false },
     select: {
       id: true,
+      foodCode: true,
       name: true,
       stockQty: true,
       isAvailable: true,
+      categoryId: true,
+      isVeg: true,
+      soldByWeight: true,
       category: { select: { name: true } },
     },
     orderBy: { name: "asc" },

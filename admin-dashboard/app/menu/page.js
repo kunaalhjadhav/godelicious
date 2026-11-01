@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import Shell from "@/components/Shell";
 import { api, API_URL } from "@/lib/api";
 import { APP_NAME } from "@/lib/brand";
+import { duplicateIds, matchesSearch, normalizeName } from "@/lib/menuTools";
 
 const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", brandId: "", soldByWeight: false, plannerRole: "", servesPerUnit: "", minOrderGrams: "" };
 
@@ -22,6 +23,12 @@ export default function MenuPage() {
   const [uploading, setUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [fCategory, setFCategory] = useState("");
+  const [fType, setFType] = useState("");   // veg | nonveg | weight | box
+  const [fStatus, setFStatus] = useState(""); // available | hidden | low | out
+  const [onlyDupes, setOnlyDupes] = useState(false);
+  const [confirmDupe, setConfirmDupe] = useState(false);
 
   function handleBulkCsv(e) {
     const file = e.target.files?.[0];
@@ -84,6 +91,7 @@ export default function MenuPage() {
         ...form, price: Number(form.price), stockQty: Number(form.stockQty || 0),
         plannerRole: form.plannerRole || null, minOrderGrams: form.minOrderGrams ? Number(form.minOrderGrams) : 250, servesPerUnit: form.servesPerUnit ? Number(form.servesPerUnit) : 1,
       };
+      if (confirmDupe) payload.allowDuplicate = true;
       if (editingId) {
         await api.updateMenuItem(editingId, payload);
       } else {
@@ -91,8 +99,10 @@ export default function MenuPage() {
       }
       setForm(EMPTY_FORM);
       setEditingId(null);
+      setConfirmDupe(false);
       load();
     } catch (err) {
+      if (/already on the menu/i.test(err.message)) setConfirmDupe(true);
       setError(err.message);
     }
   }
@@ -157,6 +167,27 @@ export default function MenuPage() {
     }
   }
 
+  const dupIds = duplicateIds(items);
+  const typedKey = normalizeName(form.name);
+  const liveDupes = typedKey
+    ? items.filter((i) => i.id !== editingId && normalizeName(i.name) === typedKey && (!form.categoryId || i.categoryId === form.categoryId))
+    : [];
+  const shown = items.filter((i) => {
+    if (!matchesSearch(i, search)) return false;
+    if (fCategory && i.categoryId !== fCategory) return false;
+    if (fType === "veg" && !i.isVeg) return false;
+    if (fType === "nonveg" && i.isVeg) return false;
+    if (fType === "weight" && !i.soldByWeight) return false;
+    if (fType === "box" && !i.isMealBox) return false;
+    if (fStatus === "available" && !i.isAvailable) return false;
+    if (fStatus === "hidden" && i.isAvailable) return false;
+    if (fStatus === "low" && !(i.stockQty > 0 && i.stockQty < 10)) return false;
+    if (fStatus === "out" && i.stockQty > 0) return false;
+    if (onlyDupes && !dupIds.has(i.id)) return false;
+    return true;
+  });
+  const filtersOn = search || fCategory || fType || fStatus || onlyDupes;
+
   return (
     <Shell>
       <h1 className="font-display text-2xl text-ink mb-1">Menu</h1>
@@ -167,9 +198,44 @@ export default function MenuPage() {
 
       <div className="grid grid-cols-3 gap-6 items-start">
         <div className="col-span-2 card-surface">
+          <div className="p-3 border-b border-line space-y-2">
+            <input
+              type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, food code or category"
+              className="w-full px-3 py-2 border border-line rounded-sm text-sm"
+            />
+            <div className="flex flex-wrap gap-2 items-center">
+              <select value={fCategory} onChange={(e) => setFCategory(e.target.value)} className="px-2 py-1.5 border border-line rounded-sm text-xs">
+                <option value="">All categories</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select value={fType} onChange={(e) => setFType(e.target.value)} className="px-2 py-1.5 border border-line rounded-sm text-xs">
+                <option value="">All types</option>
+                <option value="veg">Veg</option><option value="nonveg">Non-veg</option>
+                <option value="weight">Sold per kg</option><option value="box">Meal boxes</option>
+              </select>
+              <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="px-2 py-1.5 border border-line rounded-sm text-xs">
+                <option value="">Any status</option>
+                <option value="available">Available</option><option value="hidden">Hidden</option>
+                <option value="low">Low stock (under 10)</option><option value="out">Out of stock</option>
+              </select>
+              <label className="text-xs flex items-center gap-1">
+                <input type="checkbox" checked={onlyDupes} onChange={(e) => setOnlyDupes(e.target.checked)} />
+                Duplicates only{dupIds.size > 0 ? ` (${dupIds.size})` : ""}
+              </label>
+              {filtersOn && (
+                <button onClick={() => { setSearch(""); setFCategory(""); setFType(""); setFStatus(""); setOnlyDupes(false); }} className="text-xs text-saffron2 hover:underline">
+                  Clear
+                </button>
+              )}
+              <span className="ml-auto text-xs text-ink/50">Showing {shown.length} of {items.length}</span>
+            </div>
+          </div>
           <table className="w-full text-sm">
             <thead className="text-left text-xs font-mono uppercase text-ink/50 border-b border-line">
               <tr>
+                <th className="px-3 py-3">#</th>
+                <th className="px-3 py-3">Code</th>
                 <th className="px-4 py-3"></th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Category</th>
@@ -180,8 +246,13 @@ export default function MenuPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {items.map((item) => (
+              {shown.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-6 text-center text-ink/50">No items match. Change the search or filters.</td></tr>
+              )}
+              {shown.map((item, idx) => (
                 <tr key={item.id}>
+                  <td className="px-3 py-3 font-mono text-ink/50">{idx + 1}</td>
+                  <td className="px-3 py-3 font-mono text-xs">{item.foodCode || "-"}</td>
                   <td className="px-4 py-3">
                     {item.imageUrl ? (
                       <img src={resolveImageUrl(item.imageUrl)} alt={item.name} className="w-10 h-10 object-cover rounded-sm" />
@@ -190,6 +261,11 @@ export default function MenuPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">                    {item.name}
+                    {dupIds.has(item.id) && (
+                      <button type="button" onClick={() => { setOnlyDupes(true); setSearch(item.name); }} title="Same name in the same category. Click to see them." className="ml-2 text-[10px] font-mono uppercase bg-chili/15 text-chili px-1.5 py-0.5 rounded-sm">
+                        duplicate
+                      </button>
+                    )}
                     <span className={`ml-2 inline-block w-2 h-2 rounded-full ${item.isVeg ? "bg-basil" : "bg-chili"}`} />
                     {item.soldByWeight && (
                       <span className="ml-2 text-[10px] font-mono uppercase bg-basil/15 text-basil px-1.5 py-0.5 rounded-sm">
@@ -234,9 +310,15 @@ export default function MenuPage() {
             <h2 className="font-display text-lg mb-3">{editingId ? "Editing: " + (form.name || "item") : "New item"}</h2>
             <input
               placeholder="Name" required value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); setConfirmDupe(false); }}
               className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
             />
+            {liveDupes.length > 0 && (
+              <div className="mb-2 text-xs bg-chili/10 border-l-2 border-chili px-2 py-1.5">
+                Already on the menu: {liveDupes.map((d) => `${d.name} (${d.foodCode || "no code"}, ${d.category?.name || ""})`).join("; ")}.
+                {confirmDupe ? " Press the button again to add it anyway." : " Check before adding another."}
+              </div>
+            )}
             <textarea
               placeholder="Description" value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -333,7 +415,7 @@ export default function MenuPage() {
             </div>
             <div className="flex gap-2">
               <button type="submit" className="btn-primary text-sm flex-1">
-                {editingId ? "Save changes" : "Add item"}
+                {confirmDupe ? "Add anyway" : editingId ? "Save changes" : "Add item"}
               </button>
               {editingId && (
                 <button

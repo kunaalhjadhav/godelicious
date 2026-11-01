@@ -2,6 +2,7 @@ const prisma = require("../config/db");
 const { attachRatings } = require("../services/ratings.service");
 const { getBestsellers } = require("../services/bestsellers.service");
 const { checkBackInStock } = require("../services/backInStock.service");
+const { ensureFoodCodes, newFoodCode, findDuplicates } = require("../utils/foodCode");
 
 // ----- Categories -----
 
@@ -104,6 +105,7 @@ async function listMenuItems(req, res) {
   // Customers only see admin-approved items; staff see everything (incl. pending brand items)
   if (!isStaff(req)) where.approvalStatus = "APPROVED";
 
+  if (isStaff(req)) await ensureFoodCodes(prisma).catch((e) => console.error("foodCode backfill:", e.message));
   const items = await prisma.menuItem.findMany({
     where,
     include: { category: true, comboGroups: { include: { options: true } }, brand: true, mealBoxItems: { include: { item: true }, orderBy: { sortOrder: "asc" } } },
@@ -160,8 +162,20 @@ async function createMenuItem(req, res) {
       return res.status(400).json({ error: "name, price and categoryId are required." });
     }
 
+    // Same dish already on the menu? Ask first (the admin page sends allowDuplicate after the admin confirms).
+    if (!req.body.allowDuplicate) {
+      const dupes = await findDuplicates(prisma, name, { categoryId });
+      if (dupes.length) {
+        return res.status(409).json({
+          error: `"${dupes[0].name}" (${dupes[0].foodCode || "no code yet"}) is already on the menu in this category.`,
+          duplicates: dupes,
+        });
+      }
+    }
+
     const item = await prisma.menuItem.create({
       data: {
+        foodCode: await newFoodCode(prisma),
         name,
         description,
         price: Number(price),
@@ -188,6 +202,13 @@ async function createMenuItem(req, res) {
 async function updateMenuItem(req, res) {
   try {
     const { name, description, price, imageUrl, isVeg, isAvailable, categoryId, isCombo, soldByWeight, minOrderGrams, servesPerUnit, plannerRole, stockQty, brandId } = req.body;
+    if (name !== undefined && !req.body.allowDuplicate) {
+      const cur = await prisma.menuItem.findUnique({ where: { id: req.params.id }, select: { categoryId: true } });
+      const dupes = await findDuplicates(prisma, name, { excludeId: req.params.id, categoryId: categoryId || cur?.categoryId });
+      if (dupes.length) {
+        return res.status(409).json({ error: `"${dupes[0].name}" (${dupes[0].foodCode || "no code yet"}) is already on the menu in this category.`, duplicates: dupes });
+      }
+    }
     const before = stockQty !== undefined ? await prisma.menuItem.findUnique({ where: { id: req.params.id }, select: { stockQty: true } }) : null;
     const item = await prisma.menuItem.update({
       where: { id: req.params.id },
@@ -301,8 +322,12 @@ async function bulkCreateMenuItems(req, res) {
         update: {},
         create: { name: row.categoryName },
       });
+      if ((await findDuplicates(prisma, row.name, { categoryId: category.id })).length) {
+        throw new Error("Already on the menu in this category, so it was skipped.");
+      }
       await prisma.menuItem.create({
         data: {
+          foodCode: await newFoodCode(prisma),
           name: row.name,
           description: row.description || null,
           price: Number(row.price),

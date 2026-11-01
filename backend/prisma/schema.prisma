@@ -223,6 +223,7 @@ model Category {
 
 model MenuItem {
   id           String   @id @default(uuid())
+  foodCode     String?  @unique // e.g. GD-0001, made automatically for every item
   name         String
   description  String?
   price        Float
