@@ -58,7 +58,9 @@ export default function VenueCalendarPage() {
   }
 
   async function decide(b, status) {
-    setError(""); setBusy(b.id);
+    setError("");
+    if (status === "ACCEPTED" && !(Number(quote[b.id]) > 0)) { setError("Enter your quote (₹) before accepting. The customer pays an advance based on it."); return; }
+    setBusy(b.id);
     try {
       await api.decideVenueBooking(b.id, { status, quotedAmount: quote[b.id], ownerNote: note[b.id] });
       load();

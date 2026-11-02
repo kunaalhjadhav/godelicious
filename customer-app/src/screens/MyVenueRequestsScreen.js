@@ -73,6 +73,9 @@ export default function MyVenueRequestsScreen({ navigation }) {
           {b.status === "ACCEPTED" && b.advancePaid && (
             <Text style={styles.paid}>Advance paid: ₹{Math.round(b.advanceAmount || 0).toLocaleString("en-IN")} · Booking confirmed</Text>
           )}
+          {b.status === "ACCEPTED" && !b.advancePaid && !(b.quotedAmount > 0) && (
+            <Text style={styles.note}>The owner accepted but hasn't shared a price yet. Please call the venue{b.venue.contactPhone ? ` on ${b.venue.contactPhone}` : ""}.</Text>
+          )}
           {b.advanceDue != null && (
             <TouchableOpacity style={[styles.payBtn, paying === b.id && { opacity: 0.6 }]} disabled={paying === b.id} onPress={() => payAdvance(b)}>
               <Text style={styles.payText}>{paying === b.id ? "Please wait…" : `Pay advance ₹${b.advanceDue.toLocaleString("en-IN")} to confirm`}</Text>

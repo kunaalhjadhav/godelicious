@@ -228,6 +228,9 @@ async function decideBooking(req, res) {
     const booking = await prisma.venueBooking.findUnique({ where: { id: req.params.id } });
     if (!booking || booking.venueId !== venue.id) return res.status(404).json({ error: "Booking not found." });
     if (booking.status === "CANCELLED") return res.status(400).json({ error: "The customer already cancelled this request." });
+    if (status === "ACCEPTED" && !(Number(quotedAmount) > 0)) {
+      return res.status(400).json({ error: "Please enter your quote (price in rupees) before accepting. The customer pays an advance based on it." });
+    }
 
     if (status === "ACCEPTED") {
       const clash = await prisma.venueBooking.findMany({
