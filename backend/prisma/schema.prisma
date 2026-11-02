@@ -687,6 +687,11 @@ model VenueBooking {
   contactPhone String
   notes       String?
   quotedAmount Float?       // owner's quote when accepting
+  advanceAmount Float?      // advance the customer pays after the owner accepts
+  advancePaid   Boolean     @default(false)
+  advanceRazorpayOrderId String?
+  advancePaymentId       String?
+  advancePaidAt DateTime?
   status      BookingStatus @default(PENDING)
   ownerNote   String?
   createdAt   DateTime      @default(now())

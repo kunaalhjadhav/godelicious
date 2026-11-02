@@ -26,6 +26,8 @@ router.patch("/admin/:id", requireAuth, requireRole("ADMIN", "STAFF"), v.adminUp
 // Customer
 router.get("/bookings/my", requireAuth, v.myCustomerBookings);
 router.patch("/bookings/:id/cancel", requireAuth, v.cancelBooking);
+router.post("/bookings/:id/advance/create", requireAuth, requireRole("CUSTOMER"), v.createAdvanceOrder);
+router.post("/bookings/:id/advance/verify", requireAuth, requireRole("CUSTOMER"), v.verifyAdvance);
 router.get("/:id", v.getVenue);
 router.post("/:id/bookings", requireAuth, requireRole("CUSTOMER"), v.createBooking);
 

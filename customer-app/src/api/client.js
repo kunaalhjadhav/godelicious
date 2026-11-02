@@ -115,6 +115,8 @@ export const api = {
   getVenue: (id) => request(`/api/venues/${id}`),
   requestVenue: (id, payload) => request(`/api/venues/${id}/bookings`, { method: "POST", body: payload }),
   myVenueRequests: () => request("/api/venues/bookings/my"),
+  venueAdvanceCreate: (id) => request(`/api/venues/bookings/${id}/advance/create`, { method: "POST" }),
+  venueAdvanceVerify: (id, payload) => request(`/api/venues/bookings/${id}/advance/verify`, { method: "POST", body: payload }),
   cancelVenueRequest: (id) => request(`/api/venues/bookings/${id}/cancel`, { method: "PATCH" }),
 
   // Push notifications

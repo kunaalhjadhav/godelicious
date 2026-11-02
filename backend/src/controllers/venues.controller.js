@@ -1,4 +1,6 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const Razorpay = require("razorpay");
 const prisma = require("../config/db");
 const { signToken } = require("../utils/jwt");
 const { notifyVenueRequest, notifyVenueDecision, notifyNewVenuePartner } = require("../services/notify.service");
@@ -378,7 +380,55 @@ async function myCustomerBookings(req, res) {
     include: { venue: { select: { id: true, name: true, address: true, contactPhone: true } } },
     orderBy: { createdAt: "desc" },
   });
-  res.json({ bookings: bookings.map((b) => ({ ...b, services: parseList(b.services) })) });
+  res.json({ bookings: bookings.map((b) => ({ ...b, services: parseList(b.services), advanceDue: b.status === "ACCEPTED" && !b.advancePaid && b.quotedAmount > 0 ? advanceFor(b) : null })) });
+}
+
+// ---------- advance payment ----------
+// After the owner accepts and quotes a price, the customer pays an advance (default 25%,
+// change with VENUE_ADVANCE_PERCENT on the server) to confirm the booking.
+function advanceFor(b) {
+  const pct = Math.min(100, Math.max(1, Number(process.env.VENUE_ADVANCE_PERCENT) || 25));
+  return Math.max(1, Math.round((b.quotedAmount || 0) * pct / 100));
+}
+
+// POST /api/venues/bookings/:id/advance/create (CUSTOMER)
+async function createAdvanceOrder(req, res) {
+  const b = await prisma.venueBooking.findUnique({ where: { id: req.params.id }, include: { venue: { select: { name: true } } } });
+  if (!b || b.customerId !== req.user.id) return res.status(404).json({ error: "Booking not found." });
+  if (b.status !== "ACCEPTED") return res.status(400).json({ error: "You can pay the advance after the owner accepts your request." });
+  if (!(b.quotedAmount > 0)) return res.status(400).json({ error: "The owner hasn't shared a price yet." });
+  if (b.advancePaid) return res.status(400).json({ error: "The advance is already paid." });
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    return res.status(503).json({ error: "Online payment isn't switched on yet. Please contact us." });
+  }
+  try {
+    const client = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+    const amount = advanceFor(b);
+    const rp = await client.orders.create({ amount: amount * 100, currency: "INR", receipt: `venue_${b.id.slice(0, 30)}` });
+    await prisma.venueBooking.update({ where: { id: b.id }, data: { advanceAmount: amount, advanceRazorpayOrderId: rp.id } });
+    res.json({ razorpayOrderId: rp.id, amount: rp.amount, currency: rp.currency, keyId: process.env.RAZORPAY_KEY_ID, venueName: b.venue.name });
+  } catch (err) {
+    console.error("createAdvanceOrder error:", err?.error?.description || err?.message || err);
+    res.status(502).json({ error: "Could not start the payment. Please try again." });
+  }
+}
+
+// POST /api/venues/bookings/:id/advance/verify (CUSTOMER) { razorpayPaymentId, razorpaySignature }
+async function verifyAdvance(req, res) {
+  const { razorpayPaymentId, razorpaySignature } = req.body || {};
+  if (!razorpayPaymentId || !razorpaySignature) return res.status(400).json({ error: "Payment details are missing." });
+  const b = await prisma.venueBooking.findUnique({ where: { id: req.params.id } });
+  if (!b || b.customerId !== req.user.id) return res.status(404).json({ error: "Booking not found." });
+  if (b.advancePaid) return res.json({ booking: b });
+  if (!b.advanceRazorpayOrderId) return res.status(400).json({ error: "No payment was started for this booking." });
+  const expected = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+    .update(`${b.advanceRazorpayOrderId}|${razorpayPaymentId}`).digest("hex");
+  if (expected !== razorpaySignature) return res.status(400).json({ error: "Payment verification failed." });
+  const booking = await prisma.venueBooking.update({
+    where: { id: b.id },
+    data: { advancePaid: true, advancePaymentId: razorpayPaymentId, advancePaidAt: new Date() },
+  });
+  res.json({ booking });
 }
 
 // PATCH /api/venues/bookings/:id/cancel (CUSTOMER)
@@ -386,6 +436,7 @@ async function cancelBooking(req, res) {
   const b = await prisma.venueBooking.findUnique({ where: { id: req.params.id } });
   if (!b || b.customerId !== req.user.id) return res.status(404).json({ error: "Booking not found." });
   if (b.status === "REJECTED" || b.status === "CANCELLED") return res.status(400).json({ error: "This request is already closed." });
+  if (b.advancePaid) return res.status(400).json({ error: "The advance is paid. Please call the venue or Godelicious to cancel and discuss a refund." });
   const updated = await prisma.venueBooking.update({ where: { id: b.id }, data: { status: "CANCELLED" } });
   res.json({ booking: updated });
 }
@@ -420,7 +471,7 @@ async function adminUpdate(req, res) {
   }
 }
 
-module.exports = {
+module.exports = { createAdvanceOrder, verifyAdvance,
   register, getMine, updateMine, addTariff, updateTariff, deleteTariff, addBlock, removeBlock,
   myBookings, decideBooking, myDashboard,
   listVenues, getVenue, createBooking, myCustomerBookings, cancelBooking,
