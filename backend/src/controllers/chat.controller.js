@@ -108,3 +108,56 @@ async function replyToThread(req, res) {
 }
 
 module.exports = { myMessages, sendMyMessage, listThreads, getThread, replyToThread };
+
+
+// ---------- translation for the chat (Kannada <-> English) ----------
+const trCache = new Map();           // "to|text" -> translated text
+const trUsage = new Map();           // userId -> { count, resetAt }
+
+// POST /api/chat/translate { text, to: "kn" | "en" }
+async function translate(req, res) {
+  try {
+    const text = String(req.body?.text || "").trim().slice(0, 1000);
+    const to = req.body?.to === "en" ? "en" : "kn";
+    if (!text) return res.status(400).json({ error: "Nothing to translate." });
+
+    const cached = trCache.get(`${to}|${text}`);
+    if (cached) return res.json({ text: cached, to });
+
+    const now = Date.now();
+    const u = trUsage.get(req.user.id) || { count: 0, resetAt: now + 60 * 60 * 1000 };
+    if (u.resetAt < now) { u.count = 0; u.resetAt = now + 60 * 60 * 1000; }
+    if (u.count >= 60) return res.status(429).json({ error: "Too many translations. Please try again in a while." });
+    u.count += 1; trUsage.set(req.user.id, u);
+
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return res.status(503).json({ error: "Translation isn't switched on yet." });
+
+    const target = to === "kn" ? "Kannada (in Kannada script)" : "English";
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: process.env.TRANSLATE_MODEL || process.env.MARKETING_MODEL || "claude-sonnet-5-5",
+        max_tokens: 800,
+        system: `You translate customer chat messages for a food and catering company in Mysuru. Translate the user's message into ${target}. Keep names, numbers, prices and order codes unchanged. Reply with the translation only, no notes.`,
+        messages: [{ role: "user", content: text }],
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      console.error("[chat translate] Anthropic error:", r.status, data?.error?.message);
+      return res.status(502).json({ error: "Could not translate right now. Please try again." });
+    }
+    const out = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("").trim();
+    if (!out) return res.status(502).json({ error: "Could not translate right now. Please try again." });
+    if (trCache.size > 500) trCache.clear();
+    trCache.set(`${to}|${text}`, out);
+    res.json({ text: out, to });
+  } catch (err) {
+    console.error("[chat translate] error:", err.message);
+    res.status(500).json({ error: "Could not translate right now." });
+  }
+}
+
+module.exports.translate = translate;

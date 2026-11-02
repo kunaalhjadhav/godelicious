@@ -239,6 +239,7 @@ export const api = {
     const qs = new URLSearchParams(params).toString();
     return request(`/api/venues/me/bookings${qs ? `?${qs}` : ""}`);
   },
+  translateChat: (text, to) => request("/api/chat/translate", { method: "POST", body: { text, to } }),
   decideVenueBooking: (id, payload) => request(`/api/venues/me/bookings/${id}`, { method: "PATCH", body: payload }),
   addVenueTariff: (payload) => request("/api/venues/me/tariffs", { method: "POST", body: payload }),
   updateVenueTariff: (id, payload) => request(`/api/venues/me/tariffs/${id}`, { method: "PATCH", body: payload }),

@@ -3,6 +3,41 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import { api } from "@/lib/api";
+import { speak, stopSpeaking, canSpeak } from "@/lib/speech";
+
+// Listen / translate buttons under each message.
+function MessageTools({ body, dark }) {
+  const [tr, setTr] = useState(null);       // { text, to }
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const cls = `text-[11px] underline ${dark ? "text-paper/70" : "text-ink/50"} hover:opacity-80`;
+
+  function say(text, lang) {
+    setNote("");
+    if (!speak(text, lang)) setNote(lang.startsWith("kn") ? "This computer has no Kannada voice installed. Add one in Windows Settings > Time & language > Speech." : "Voice not available here.");
+  }
+  async function translate(to) {
+    setBusy(true); setNote("");
+    try { setTr(await api.translateChat(body, to)); } catch (e) { setNote(e.message); } finally { setBusy(false); }
+  }
+  return (
+    <div className="mt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {canSpeak() && <button type="button" className={cls} onClick={() => say(body, "en-IN")}>Listen</button>}
+        <button type="button" className={cls} disabled={busy} onClick={() => translate("kn")}>{busy ? "Translating…" : "ಕನ್ನಡ"}</button>
+        <button type="button" className={cls} disabled={busy} onClick={() => translate("en")}>English</button>
+        {canSpeak() && <button type="button" className={cls} onClick={stopSpeaking}>Stop</button>}
+      </div>
+      {tr && (
+        <div className={`mt-1 pt-1 border-t ${dark ? "border-paper/20" : "border-line"}`}>
+          <div>{tr.text}</div>
+          {canSpeak() && <button type="button" className={cls} onClick={() => say(tr.text, tr.to === "kn" ? "kn-IN" : "en-IN")}>Listen to this</button>}
+        </div>
+      )}
+      {note && <div className="text-[11px] text-chili mt-1">{note}</div>}
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const [threads, setThreads] = useState([]);
@@ -103,6 +138,7 @@ export default function ChatPage() {
                       }`}
                     >
                       {m.body}
+                      <MessageTools body={m.body} dark={m.senderRole === "ADMIN"} />
                     </div>
                   </div>
                 ))}

@@ -5,6 +5,8 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 
 router.use(requireAuth);
 
+router.post("/translate", chat.translate);
+
 // Customer's own thread
 router.get("/my", chat.myMessages);
 router.post("/my", chat.sendMyMessage);

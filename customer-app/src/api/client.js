@@ -71,6 +71,7 @@ export const api = {
   markNotificationRead: (id) => request(`/api/notifications/${id}/read`, { method: "POST" }),
 
   myMessages: () => request("/api/chat/my"),
+  translateChat: (text, to) => request("/api/chat/translate", { method: "POST", body: { text, to } }),
   sendMessage: (body) => request("/api/chat/my", { method: "POST", body: { body } }),
 
   // OTP login
