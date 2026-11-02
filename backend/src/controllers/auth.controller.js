@@ -8,7 +8,8 @@ const { signToken } = require("../utils/jwt");
 // self-registered, to prevent privilege escalation.
 async function register(req, res) {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, password, phone } = req.body;
+    const email = req.body.email ? String(req.body.email).trim().toLowerCase() : req.body.email;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "name, email and password are required." });
@@ -17,7 +18,7 @@ async function register(req, res) {
       return res.status(400).json({ error: "Password must be at least 6 characters." });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
     if (existing) {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
@@ -41,12 +42,13 @@ async function register(req, res) {
 // POST /api/auth/login
 async function login(req, res) {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email ? String(req.body.email).trim() : req.body.email;
     if (!email || !password) {
       return res.status(400).json({ error: "email and password are required." });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password." });
     }

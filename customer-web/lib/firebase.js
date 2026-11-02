@@ -14,8 +14,10 @@ const firebaseConfig = {
 
 const FIREBASE_CONFIGURED = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
+export const isFirebaseConfigured = FIREBASE_CONFIGURED;
+
 let app = null;
-function getFirebaseApp() {
+export function getFirebaseApp() {
   if (!FIREBASE_CONFIGURED) return null;
   if (!app) {
     app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);

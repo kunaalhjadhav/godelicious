@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform,
   ScrollView, Image, Linking, StatusBar,
@@ -8,27 +8,32 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { colors, spacing, greens } from "../theme";
 import GradientView from "../components/GradientView";
+import { APP_BUILD } from "../version";
 
 export default function LoginScreen() {
-  const { loginWithOtp } = useAuth();
+  const { loginWithOtp, loginWithWhatsApp } = useAuth();
   const navigation = useNavigation();
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [channel, setChannel] = useState("sms"); // which one the code was sent by: "sms" | "wa"
+  const [waEnabled, setWaEnabled] = useState(false);
+  useEffect(() => { api.waStatus().then((d) => setWaEnabled(Boolean(d.enabled))).catch(() => {}); }, []);
   const [devCode, setDevCode] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
 
-  async function requestCode() {
+  async function requestCode(via = "sms") {
     if (!name || !phone) {
       Alert.alert("Missing info", "Please enter your name and phone number.");
       return;
     }
     setSubmitting(true);
     try {
-      const data = await api.requestOtp(phone);
+      const data = via === "wa" ? await api.waRequest(phone) : await api.requestOtp(phone);
+      setChannel(via);
       setOtpSent(true);
       if (data.devCode) setDevCode(data.devCode);
     } catch (err) {
@@ -45,7 +50,8 @@ export default function LoginScreen() {
     }
     setSubmitting(true);
     try {
-      await loginWithOtp(phone, code, name);
+      if (channel === "wa") await loginWithWhatsApp(phone, code, name);
+      else await loginWithOtp(phone, code, name);
     } catch (err) {
       Alert.alert("Couldn't verify code", err.message);
     } finally {
@@ -71,7 +77,7 @@ export default function LoginScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>Welcome to Godelicious</Text>
           <Text style={styles.subtitle}>
-            {otpSent ? "Enter the 6-digit code we sent you" : "Please enter your details to login"}
+            {otpSent ? (channel === "wa" ? "Enter the 6-digit code from WhatsApp" : "Enter the 6-digit code we sent you") : "Please enter your details to login"}
           </Text>
 
           <TextInput
@@ -100,13 +106,25 @@ export default function LoginScreen() {
             </>
           )}
 
-          <TouchableOpacity onPress={otpSent ? verifyCode : requestCode} disabled={submitting} activeOpacity={0.85} style={{ marginTop: spacing.lg }}>
+          <TouchableOpacity onPress={otpSent ? verifyCode : () => requestCode("sms")} disabled={submitting} activeOpacity={0.85} style={{ marginTop: spacing.lg }}>
             <GradientView colors={greens.buttonGradient} horizontal style={[styles.button, submitting && { opacity: 0.6 }]}>
               <Text style={styles.buttonText}>
                 {submitting ? "Please wait…" : otpSent ? "Verify & continue" : "Get OTP"}
               </Text>
             </GradientView>
           </TouchableOpacity>
+
+          {!otpSent && waEnabled && (
+            <TouchableOpacity onPress={() => requestCode("wa")} disabled={submitting} style={{ marginTop: spacing.md }}>
+              <Text style={styles.link}>Get the code on WhatsApp instead</Text>
+            </TouchableOpacity>
+          )}
+
+          {!otpSent && (
+            <TouchableOpacity onPress={() => navigation.navigate("EmailLogin")} style={{ marginTop: spacing.md }}>
+              <Text style={styles.link}>Sign in with email instead</Text>
+            </TouchableOpacity>
+          )}
 
           {otpSent && (
             <TouchableOpacity onPress={() => { setOtpSent(false); setCode(""); setDevCode(""); }} style={{ marginTop: spacing.md }}>
@@ -122,6 +140,7 @@ export default function LoginScreen() {
             {" "}and{" "}
             <Text style={styles.termsLink} onPress={() => Linking.openURL("https://godelicious.in/privacy")}>Privacy Policy</Text>
           </Text>
+          <Text style={styles.version}>v{APP_BUILD}</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -162,5 +181,6 @@ const styles = StyleSheet.create({
   link: { color: greens.deep, textAlign: "center", fontSize: 14, textDecorationLine: "underline" },
   helper: { fontSize: 12, color: "#7A8A81", textAlign: "center", marginTop: spacing.lg },
   terms: { fontSize: 12, color: "#7A8A81", textAlign: "center", marginTop: spacing.xl },
+  version: { fontSize: 10, color: "#A5B2AA", textAlign: "center", marginTop: spacing.md },
   termsLink: { color: "#1B2B22", textDecorationLine: "underline" },
 });

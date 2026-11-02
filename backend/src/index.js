@@ -114,6 +114,8 @@ app.get("/health", (req, res) => res.json({ status: "ok", time: new Date().toISO
 // Serves uploaded images directly, e.g. GET /uploads/169... .jpg
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
+app.use("/api/auth/wa", require("./routes/waAuth.routes"));
+app.use("/api/auth/firebase", require("./routes/firebaseAuth.routes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/menu", menuRoutes);

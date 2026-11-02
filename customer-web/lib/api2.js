@@ -27,6 +27,12 @@ export const api2 = {
   // Address search / autofill (served by our backend; works with or without a Google key)
   placesAutocomplete: (q, lat, lng) =>
     request(`/api/places/autocomplete?q=${encodeURIComponent(q)}${lat != null ? `&lat=${lat}&lng=${lng}` : ""}`),
+  waStatus: () => request("/api/auth/wa/status"),
+  waRequest: (phone) => request("/api/auth/wa/request", { method: "POST", body: { phone } }),
+  waVerify: (phone, code, name) => request("/api/auth/wa/verify", { method: "POST", body: { phone, code, name } }),
+  firebaseStatus: () => request("/api/auth/firebase/status"),
+  firebaseLogin: (idToken, name) => request("/api/auth/firebase", { method: "POST", body: { idToken, name } }),
+  firebaseHandoff: (sid, idToken, name) => request("/api/auth/firebase/handoff", { method: "POST", body: { sid, idToken, name } }),
   placeDetails: (id) => request(`/api/places/details?id=${encodeURIComponent(id)}`),
   placesReverse: (lat, lng) => request(`/api/places/reverse?lat=${lat}&lng=${lng}`),
 };
