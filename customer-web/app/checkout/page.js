@@ -13,7 +13,7 @@ import { api2, getSource } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
 import { useCart } from "@/lib/useCart";
 import { APP_NAME } from "@/lib/brand";
-import { computeTotals, rupees, mealBoxCount , codRuleFor } from "@/lib/pricing";
+import { computeTotals, rupees, mealBoxCount, codRuleFor, categoryShortfalls } from "@/lib/pricing";
 
 const MIN_LEAD_HOURS = 15;
 
@@ -175,6 +175,7 @@ export default function CheckoutPage() {
   const boxQty = mealBoxCount(items);
   const boxMin = settings?.mealBoxMinQty ?? 10;
   const belowBoxMin = boxQty > 0 && boxQty < boxMin;
+  const catShort = categoryShortfalls(items);
   const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
   async function handleSubmit(e) {
@@ -460,8 +461,14 @@ export default function CheckoutPage() {
             </p>
           )}
 
+          {catShort.map((c) => (
+            <p key={c.name} className="text-xs text-chili mt-3">
+              {c.name} needs a minimum of {c.min} per order. Add {c.min - c.have} more.
+            </p>
+          ))}
+
           <button
-            type="submit" disabled={submitting || belowMinimum || belowBoxMin || dateTimeInvalid}
+            type="submit" disabled={submitting || belowMinimum || belowBoxMin || catShort.length > 0 || dateTimeInvalid}
             className="btn-primary w-full mt-5 py-3"
           >
             {submitting ? "Processing…" : paymentMethod === "COD" ? `Pay ${rupees(cod.advance)} advance & place order` : "Pay & place order"}
