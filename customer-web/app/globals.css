@@ -206,3 +206,14 @@ body:has(.auth-skin) > footer,
 body:has(.auth-skin) footer,
 body:has(.auth-skin) nav.fixed { display: none !important; }
 body:has(.auth-skin) { background: #0f8a4b; }
+
+/* Google / Apple sign-in buttons on the sign-in pages */
+.social-login { max-width: 24rem; margin: 0 auto; padding: 0 1.25rem 1rem; display: grid; gap: .6rem; }
+.social-or { display: flex; align-items: center; gap: .75rem; color: rgba(255,255,255,.85); font-size: .8rem; }
+.social-or::before, .social-or::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.35); }
+.social-btn { height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: .6rem; font-weight: 600; font-size: .95rem; cursor: pointer; }
+.social-btn:disabled { opacity: .6; cursor: default; }
+.social-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.social-google { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; }
+.social-apple { background: #000; color: #fff; border: 1px solid #000; }
+.social-error { color: #fff; background: rgba(179,38,30,.85); font-size: .8rem; padding: .4rem .6rem; border-radius: 6px; }

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import LoginAlternative from "@/components/LoginAlternative";
+import SocialLogin from "@/components/SocialLogin";
 
 // Green-gradient sign-in shell. This wraps the existing login page WITHOUT
 // editing it (the page's OTP logic stays untouched); the look is applied by
@@ -10,6 +12,8 @@ export default function LoginLayout({ children }) {
     <div className="auth-skin">
       <Link href="/" className="auth-close" aria-label="Close">✕</Link>
       {children}
+      <SocialLogin />
+      <LoginAlternative />
       <p className="auth-terms">
         By proceeding, you agree to our{" "}
         <Link href="/terms">T&amp;Cs</Link> and <Link href="/privacy">Privacy Policy</Link>

@@ -10,10 +10,12 @@ export default function AppSocialLogin() {
   const [sid, setSid] = useState("");
   const [state, setState] = useState("idle"); // idle | busy | done
   const [error, setError] = useState("");
+  const [first, setFirst] = useState("google");
 
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("sid") || "";
     setSid(/^[a-f0-9]{32}$/.test(v) ? v : "");
+    if (new URLSearchParams(window.location.search).get("p") === "apple") setFirst("apple");
   }, []);
 
   async function go(kind) {
@@ -43,7 +45,7 @@ export default function AppSocialLogin() {
           <>
             <h1 className="font-display text-2xl text-ink mb-5">Sign in to Godelicious</h1>
             {error && <div className="mb-4 text-sm text-chili bg-chili/10 border-l-2 border-chili px-3 py-2">{error}</div>}
-            <div className="grid gap-2">
+            <div className={`grid gap-2 ${first === "apple" ? "[&>*:first-child]:order-2" : ""}`}>
               <button onClick={() => go("google")} disabled={state === "busy"} className="w-full bg-white border border-line rounded-sm py-3 text-sm font-medium text-ink">Continue with Google</button>
               <button onClick={() => go("apple")} disabled={state === "busy"} className="w-full bg-black text-white rounded-sm py-3 text-sm font-medium">Continue with Apple</button>
             </div>
