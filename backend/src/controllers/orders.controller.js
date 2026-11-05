@@ -99,7 +99,6 @@ async function createOrder(req, res) {
       let subtotal = 0;
       let mealBoxUnits = 0; // how many meal boxes are in this order (minimum applies, see below)
       const orderItemsData = [];
-      const categoryUnits = {}; // categoryId -> pieces ordered (items sold by weight are not counted)
 
       for (const line of itemLines) {
         const menuItem = await tx.menuItem.findUnique({ where: { id: line.menuItemId } });
@@ -133,9 +132,6 @@ async function createOrder(req, res) {
         }
 
         if (menuItem.isMealBox) mealBoxUnits += Number(line.quantity) || 0;
-        if (!menuItem.soldByWeight && menuItem.categoryId) {
-          categoryUnits[menuItem.categoryId] = (categoryUnits[menuItem.categoryId] || 0) + (Number(line.quantity) || 0);
-        }
 
         const lineValue = unitPrice * line.quantity;
         // No per-item minimum here — the order-wide minOrderAmount check further
@@ -164,18 +160,6 @@ async function createOrder(req, res) {
         throw new Error(
           `Meal boxes need a minimum of ${settings.mealBoxMinQty} meals per order. You have ${mealBoxUnits} - please add ${settings.mealBoxMinQty - mealBoxUnits} more.`
         );
-      }
-
-      // Category minimums set by the admin (Admin > Categories), e.g. at least 10 pieces of sweets
-      const catIds = Object.keys(categoryUnits);
-      if (catIds.length) {
-        const cats = await tx.category.findMany({ where: { id: { in: catIds }, minOrderQty: { gt: 0 } } });
-        for (const c of cats) {
-          const have = categoryUnits[c.id];
-          if (have < c.minOrderQty) {
-            throw new Error(`${c.name} needs a minimum of ${c.minOrderQty} per order. You have ${have} - please add ${c.minOrderQty - have} more.`);
-          }
-        }
       }
 
       // Validate the order type, if given

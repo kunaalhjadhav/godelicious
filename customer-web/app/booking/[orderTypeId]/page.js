@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { computeTotals, rupees } from "@/lib/pricing";
+import { computeTotals, rupees , codRuleFor } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import Script from "next/script";
 import { MapPin, CheckCircle2, Map as MapIcon } from "lucide-react";
@@ -174,6 +174,11 @@ export default function BookingPage() {
   const gstPercent = settings?.gstPercent ?? 5;
   const totals = computeTotals({ subtotal, discount, deliveryFee, gstPercent });
   const finalTotal = totals.total;
+  const cod = codRuleFor(finalTotal, settings?.codRules);
+  const codBlocked = (settings && !settings.codEnabled) || !cod.allowed;
+  useEffect(() => {
+    if (paymentMethod === "COD" && codBlocked) setPaymentMethod("ONLINE");
+  }, [paymentMethod, codBlocked]);
   const belowMinimum = settings && subtotal < settings.minOrderAmount && subtotal > 0;
   const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
@@ -225,10 +230,11 @@ export default function BookingPage() {
       };
       const { order } = await api.createOrder({ ...payload, source: getSource() });
 
-      if (paymentMethod === "COD") {
+      if (paymentMethod === "COD" && !(order.advanceAmount > 0)) {
         router.push(`/orders/${order.id}`);
         return;
       }
+      // ONLINE pays the full total; COD above the limit pays the advance now and the rest in cash.
 
       if (!razorpayReady || !window.Razorpay) {
         throw new Error("Payment gateway is still loading — please try again in a moment.");
@@ -457,12 +463,18 @@ export default function BookingPage() {
             </button>
             <button
               type="button" onClick={() => setPaymentMethod("COD")}
-              disabled={settings && !settings.codEnabled}
+              disabled={codBlocked}
               className={`flex-1 text-sm py-2 rounded-sm border disabled:opacity-40 ${paymentMethod === "COD" ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink"}`}
             >
               Cash on delivery
             </button>
           </div>
+          {settings?.codEnabled !== false && !cod.allowed && (
+            <p className="text-xs text-ink/50 mb-3">Cash on delivery is available for orders above {rupees(cod.minTotal)}.</p>
+          )}
+          {paymentMethod === "COD" && cod.allowed && (
+            <p className="text-xs text-basil mb-3">Pay {rupees(cod.advance)} ({cod.advancePercent}%) online now. Pay the remaining {rupees(cod.balance)} in cash on delivery.</p>
+          )}
 
           <div className="bg-paper rounded-sm p-4 mb-4 space-y-1">
             {needsStaff && (
@@ -511,7 +523,7 @@ export default function BookingPage() {
             type="submit" disabled={submitting || belowMinimum || dateTimeInvalid}
             className="btn-primary w-full py-3"
           >
-            {submitting ? "Processing…" : paymentMethod === "COD" ? "Confirm booking (Cash on delivery)" : "Pay & confirm booking"}
+            {submitting ? "Processing…" : paymentMethod === "COD" ? `Pay ${rupees(cod.advance)} advance & confirm booking` : "Pay & confirm booking"}
           </button>
         </form>
       </div>

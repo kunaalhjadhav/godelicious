@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { codConfig } = require("../utils/codRules");
 
 // GET /api/settings (public — checkout needs to read min order / COD availability)
 async function getSettings(req, res) {
@@ -10,9 +11,9 @@ async function getSettings(req, res) {
   // The alert number is private - only admins/staff get to see it
   if (!(req.user && ["ADMIN", "STAFF"].includes(req.user.role))) {
     const { adminWhatsapp, ...publicSettings } = settings;
-    return res.json({ settings: publicSettings });
+    return res.json({ settings: { ...publicSettings, codRules: codConfig() } });
   }
-  res.json({ settings });
+  res.json({ settings: { ...settings, codRules: codConfig() } });
 }
 
 // PATCH /api/settings (ADMIN)

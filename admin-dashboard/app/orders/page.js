@@ -65,6 +65,9 @@ export default function OrdersPage() {
       `Directions: ${mapsLink}`,
       ``,
       `Payment: ${order.paymentMethod} — ${order.paymentStatus}`,
+      ...(order.paymentMethod === "COD" && order.paymentStatus !== "PAID"
+        ? [`Collect cash: Rs ${Math.round(order.totalAmount - (order.advancePaid ? order.advanceAmount || 0 : 0))}`]
+        : []),
       ``,
       `Items:`,
       itemLines,
@@ -169,6 +172,13 @@ export default function OrdersPage() {
                 <span className={`text-xs font-mono px-1.5 py-0.5 rounded-sm ${order.paymentStatus === "PAID" ? "bg-basil/10 text-basil" : "bg-saffron/10 text-saffron2"}`}>
                   {order.paymentMethod} · {order.paymentStatus}
                 </span>
+                {order.paymentMethod === "COD" && order.advanceAmount > 0 && (
+                  <span className={`text-xs font-mono px-1.5 py-0.5 rounded-sm ${order.advancePaid ? "bg-basil/10 text-basil" : "bg-chili/10 text-chili"}`}>
+                    {order.advancePaid
+                      ? `Advance ₹${Math.round(order.advanceAmount)} paid · collect ₹${Math.round(order.totalAmount - order.advanceAmount)}`
+                      : `Advance ₹${Math.round(order.advanceAmount)} not paid`}
+                  </span>
+                )}
                 {order.deliveryPartner && (
                   <span className="text-xs font-mono px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-700">
                     → {order.deliveryPartner.name}

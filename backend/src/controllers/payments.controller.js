@@ -29,17 +29,20 @@ async function createRazorpayOrder(req, res) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return res.status(404).json({ error: "Order not found." });
   if (order.userId !== req.user.id) return res.status(403).json({ error: "This isn't your order." });
-  if (order.paymentMethod !== "ONLINE") {
+  // ONLINE orders pay the full total. COD orders above the limit pay only the advance online.
+  const isCodAdvance = order.paymentMethod === "COD" && order.advanceAmount > 0;
+  if (order.paymentMethod !== "ONLINE" && !isCodAdvance) {
     return res.status(400).json({ error: "This order isn't set up for online payment." });
   }
-  if (order.paymentStatus === "PAID") {
+  if (order.paymentStatus === "PAID" || (isCodAdvance && order.advancePaid)) {
     return res.status(400).json({ error: "This order is already paid." });
   }
+  const payNow = isCodAdvance ? order.advanceAmount : order.totalAmount;
 
   try {
     const client = getClient();
     const rpOrder = await client.orders.create({
-      amount: Math.round(order.totalAmount * 100), // paise
+      amount: Math.round(payNow * 100), // paise
       currency: "INR",
       receipt: order.id,
     });
@@ -117,7 +120,10 @@ async function verifyRazorpayPayment(req, res) {
 
   const updated = await prisma.order.update({
     where: { id: order.id },
-    data: { paymentStatus: "PAID", razorpayPaymentId, razorpaySignature },
+    // A COD advance marks only the advance as paid; the balance is collected on delivery.
+    data: order.paymentMethod === "COD"
+      ? { advancePaid: true, razorpayPaymentId, razorpaySignature }
+      : { paymentStatus: "PAID", razorpayPaymentId, razorpaySignature },
   });
   notifyPaymentReceived(order.id);
   res.json({ order: updated });

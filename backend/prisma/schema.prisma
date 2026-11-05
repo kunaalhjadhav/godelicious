@@ -218,7 +218,6 @@ model Category {
   name      String     @unique
   imageUrl  String?
   sortOrder Int        @default(0)
-  minOrderQty Int      @default(0) // minimum pieces from this category per order (0 = no minimum)
   menuItems MenuItem[]
 }
 
