@@ -218,6 +218,7 @@ model Category {
   name      String     @unique
   imageUrl  String?
   sortOrder Int        @default(0)
+  minOrderQty Int      @default(0) // minimum pieces from this category per order (0 = no minimum)
   menuItems MenuItem[]
 }
 
@@ -332,6 +333,8 @@ model Order {
   razorpayOrderId  String?
   razorpayPaymentId String?
   razorpaySignature String?
+  advanceAmount    Float         @default(0) // COD orders: part paid online before delivery
+  advancePaid      Boolean       @default(false)
   codConfirmedAt   DateTime?
   codConfirmedBy   String?       // staff/admin user id who confirmed COD payment collection
 

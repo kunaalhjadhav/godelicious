@@ -17,6 +17,8 @@ export default function CategoriesPage() {
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const [editingImageUrl, setEditingImageUrl] = useState("");
+  const [minQty, setMinQty] = useState("");
+  const [editingMinQty, setEditingMinQty] = useState("");
   const [error, setError] = useState("");
   const [moveFor, setMoveFor] = useState(null); // { cat, count } while asking where to move a category's items
   const [moveTo, setMoveTo] = useState("");
@@ -46,8 +48,9 @@ export default function CategoriesPage() {
     e.preventDefault();
     setError("");
     try {
-      await api.createCategory({ name, imageUrl });
+      await api.createCategory({ name, imageUrl, minOrderQty: Number(minQty) || 0 });
       setName("");
+      setMinQty("");
       setImageUrl("");
       load();
     } catch (err) {
@@ -59,12 +62,13 @@ export default function CategoriesPage() {
     setEditingId(cat.id);
     setEditingName(cat.name);
     setEditingImageUrl(cat.imageUrl || "");
+    setEditingMinQty(cat.minOrderQty ? String(cat.minOrderQty) : "");
   }
 
   async function saveEdit(id) {
     setError("");
     try {
-      await api.updateCategory(id, { name: editingName, imageUrl: editingImageUrl });
+      await api.updateCategory(id, { name: editingName, imageUrl: editingImageUrl, minOrderQty: Number(editingMinQty) || 0 });
       setEditingId(null);
       load();
     } catch (err) {
@@ -155,6 +159,12 @@ export default function CategoriesPage() {
                     className="field-input flex-1"
                     autoFocus
                   />
+                  <input
+                    type="number" min="0" value={editingMinQty}
+                    onChange={(e) => setEditingMinQty(e.target.value)}
+                    placeholder="Min qty" title="Minimum pieces per order (0 or empty = no minimum)"
+                    className="field-input w-24"
+                  />
                   <button onClick={() => saveEdit(cat.id)} className="text-basil text-xs hover:underline">Save</button>
                   <button onClick={() => setEditingId(null)} className="text-ink/50 text-xs hover:underline">Cancel</button>
                 </>
@@ -167,7 +177,10 @@ export default function CategoriesPage() {
                   )}
                   <div className="flex-1">
                     <h3 className="font-display text-lg">{cat.name}</h3>
-                    <p className="text-xs text-ink/40 font-mono">Sort order: {cat.sortOrder ?? 0}</p>
+                    <p className="text-xs text-ink/40 font-mono">
+                      Sort order: {cat.sortOrder ?? 0}
+                      {cat.minOrderQty > 0 ? ` · Minimum ${cat.minOrderQty} per order` : " · No minimum"}
+                    </p>
                   </div>
                   <button onClick={() => move(cat, -1)} className="text-xs px-1.5 border border-line rounded-sm">↑</button>
                   <button onClick={() => move(cat, 1)} className="text-xs px-1.5 border border-line rounded-sm">↓</button>
@@ -187,6 +200,13 @@ export default function CategoriesPage() {
             onChange={(e) => setName(e.target.value)}
             className="field-input mb-3"
           />
+          <label className="field-label">Minimum per order</label>
+          <input
+            type="number" min="0" value={minQty} onChange={(e) => setMinQty(e.target.value)}
+            placeholder="e.g. 10 (leave empty for no minimum)"
+            className="field-input mb-1"
+          />
+          <p className="text-xs text-ink/40 mb-3">Customers must order at least this many pieces from this category in one order. Items sold by weight use their own gram minimum.</p>
           <label className="field-label">Image</label>
           <div className="flex items-center gap-3 mb-4">
             {imageUrl ? (

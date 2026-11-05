@@ -13,7 +13,7 @@ import { api2, getSource } from "@/lib/api2";
 import { useAuth } from "@/lib/useAuth";
 import { useCart } from "@/lib/useCart";
 import { APP_NAME } from "@/lib/brand";
-import { computeTotals, rupees, mealBoxCount } from "@/lib/pricing";
+import { computeTotals, rupees, mealBoxCount, codRuleFor, categoryShortfalls } from "@/lib/pricing";
 
 const MIN_LEAD_HOURS = 15;
 
@@ -165,11 +165,17 @@ export default function CheckoutPage() {
   const gstPercent = settings?.gstPercent ?? 5;
   const totals = computeTotals({ subtotal: totalAmount, discount, deliveryFee, gstPercent });
   const finalTotal = totals.total;
+  const cod = codRuleFor(finalTotal, settings?.codRules);
+  const codBlocked = (settings && !settings.codEnabled) || !cod.allowed;
+  useEffect(() => {
+    if (paymentMethod === "COD" && codBlocked) setPaymentMethod("ONLINE");
+  }, [paymentMethod, codBlocked]);
   // Minimums are checked on the subtotal BEFORE the coupon, so a discount can take the bill below the minimum.
   const belowMinimum = settings && totalAmount < settings.minOrderAmount && totalAmount > 0;
   const boxQty = mealBoxCount(items);
   const boxMin = settings?.mealBoxMinQty ?? 10;
   const belowBoxMin = boxQty > 0 && boxQty < boxMin;
+  const catShort = categoryShortfalls(items);
   const dateTimeInvalid = !eventDate || !eventTime || combineDateTime(eventDate, eventTime) < new Date(Date.now() + MIN_LEAD_HOURS * 60 * 60 * 1000);
 
   async function handleSubmit(e) {
@@ -214,11 +220,12 @@ export default function CheckoutPage() {
       };
       const { order } = await api.createOrder({ ...payload, source: getSource() });
 
-      if (paymentMethod === "COD") {
+      if (paymentMethod === "COD" && !(order.advanceAmount > 0)) {
         clearCart();
         router.push(`/orders/${order.id}`);
         return;
       }
+      // ONLINE pays the full total; COD above the limit pays the advance now and the rest in cash.
 
       // ONLINE — open Razorpay checkout
       if (!razorpayReady || !window.Razorpay) {
@@ -251,7 +258,7 @@ export default function CheckoutPage() {
         modal: {
           ondismiss: () => {
             setSubmitting(false);
-            setError("Payment was cancelled. Your order is saved but unpaid — you can retry from My Orders.");
+            setError(paymentMethod === "COD" ? "The advance wasn't paid. Your order is saved but won't be confirmed until the advance is paid. You can retry from My Orders." : "Payment was cancelled. Your order is saved but unpaid — you can retry from My Orders.");
           },
         },
       });
@@ -396,12 +403,18 @@ export default function CheckoutPage() {
             </button>
             <button
               type="button" onClick={() => setPaymentMethod("COD")}
-              disabled={settings && !settings.codEnabled}
+              disabled={codBlocked}
               className={`flex-1 text-sm py-2 rounded-sm border disabled:opacity-40 ${paymentMethod === "COD" ? "bg-charcoal text-paper border-charcoal" : "border-line text-ink"}`}
             >
               Cash on delivery
             </button>
           </div>
+          {settings?.codEnabled !== false && !cod.allowed && (
+            <p className="text-xs text-ink/50 mb-3">Cash on delivery is available for orders above {rupees(cod.minTotal)}.</p>
+          )}
+          {paymentMethod === "COD" && cod.allowed && (
+            <p className="text-xs text-basil mb-3">Pay {rupees(cod.advance)} ({cod.advancePercent}%) online now. Pay the remaining {rupees(cod.balance)} in cash on delivery.</p>
+          )}
           {settings && !settings.codEnabled && (
             <p className="text-xs text-ink/40 mb-3">Cash on delivery isn't available right now.</p>
           )}
@@ -448,11 +461,17 @@ export default function CheckoutPage() {
             </p>
           )}
 
+          {catShort.map((c) => (
+            <p key={c.name} className="text-xs text-chili mt-3">
+              {c.name} needs a minimum of {c.min} per order. Add {c.min - c.have} more.
+            </p>
+          ))}
+
           <button
-            type="submit" disabled={submitting || belowMinimum || belowBoxMin || dateTimeInvalid}
+            type="submit" disabled={submitting || belowMinimum || belowBoxMin || catShort.length > 0 || dateTimeInvalid}
             className="btn-primary w-full mt-5 py-3"
           >
-            {submitting ? "Processing…" : paymentMethod === "COD" ? "Place order (Cash on delivery)" : "Pay & place order"}
+            {submitting ? "Processing…" : paymentMethod === "COD" ? `Pay ${rupees(cod.advance)} advance & place order` : "Pay & place order"}
           </button>
         </form>
       </div>

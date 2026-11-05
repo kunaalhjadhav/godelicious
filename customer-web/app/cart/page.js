@@ -5,7 +5,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import { useCart } from "@/lib/useCart";
 import { api2 } from "@/lib/api2";
-import { computeTotals, rupees, mealBoxCount } from "@/lib/pricing";
+import { computeTotals, rupees, mealBoxCount, categoryShortfalls } from "@/lib/pricing";
 
 export default function CartPage() {
   const { items, totalAmount, addItem, decrementItem, updateQuantity, removeItem } = useCart();
@@ -15,7 +15,8 @@ export default function CartPage() {
   const totals = computeTotals({ subtotal: totalAmount, gstPercent });
   const boxQty = mealBoxCount(items);
   const boxMin = settings?.mealBoxMinQty ?? 10;
-  const needMore = boxQty > 0 && boxQty < boxMin;
+  const catShort = categoryShortfalls(items);
+  const needMore = (boxQty > 0 && boxQty < boxMin) || catShort.length > 0;
 
   return (
     <div className="min-h-screen bg-paper">
@@ -95,6 +96,12 @@ export default function CartPage() {
                 {needMore && <Link href="/meal-boxes" className="ml-2 underline">Add meal boxes</Link>}
               </div>
             )}
+
+            {catShort.map((c) => (
+              <div key={c.name} className="mb-4 text-sm px-3 py-2 border-l-2 text-chili bg-chili/10 border-chili">
+                {c.name} needs a minimum of {c.min} per order. You have {c.have}. Add {c.min - c.have} more to check out.
+              </div>
+            ))}
 
             <div className="bg-white border border-line rounded-sm p-4 mb-6 space-y-1 text-sm">
               <div className="flex justify-between text-ink/70"><span>Subtotal</span><span>{rupees(totals.subtotal)}</span></div>

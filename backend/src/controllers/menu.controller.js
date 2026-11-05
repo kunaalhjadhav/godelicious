@@ -18,7 +18,10 @@ async function createCategory(req, res) {
     const name = String(req.body?.name || "").trim();
     if (!name) return res.status(400).json({ error: "name is required." });
     const category = await prisma.category.create({
-      data: { name, sortOrder: Number(req.body.sortOrder) || 0, imageUrl: req.body.imageUrl || null },
+      data: {
+        name, sortOrder: Number(req.body.sortOrder) || 0, imageUrl: req.body.imageUrl || null,
+        minOrderQty: Math.max(0, Math.floor(Number(req.body.minOrderQty) || 0)),
+      },
     });
     res.status(201).json({ category });
   } catch (err) {
@@ -31,7 +34,7 @@ async function createCategory(req, res) {
 // PATCH /api/menu/categories/:id (ADMIN)
 async function updateCategory(req, res) {
   try {
-    const { name, sortOrder, imageUrl } = req.body;
+    const { name, sortOrder, imageUrl, minOrderQty } = req.body;
     if (name !== undefined && !String(name).trim()) return res.status(400).json({ error: "The category needs a name." });
     const category = await prisma.category.update({
       where: { id: req.params.id },
@@ -39,6 +42,7 @@ async function updateCategory(req, res) {
         ...(name !== undefined && { name: String(name).trim() }),
         ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
         ...(imageUrl !== undefined && { imageUrl }),
+        ...(minOrderQty !== undefined && { minOrderQty: Math.max(0, Math.floor(Number(minOrderQty) || 0)) }),
       },
     });
     res.json({ category });
