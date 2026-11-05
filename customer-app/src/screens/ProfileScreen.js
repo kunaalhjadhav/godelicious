@@ -8,6 +8,7 @@ import { isPushEnabled, setPushEnabled, pushAvailable } from "../push";
 import { colors, spacing } from "../theme";
 import { rupees } from "../utils";
 import { APP_NAME } from "../brand";
+import { APP_BUILD } from "../version";
 
 function Row({ label, value, onPress, last }) {
   return (
@@ -69,6 +70,28 @@ export default function ProfileScreen({ navigation }) {
 
   const activePlans = plans.filter((p) => p.status === "ACTIVE").length;
 
+
+  function confirmDelete() {
+    Alert.alert(
+      "Delete your account?",
+      "Your profile, saved addresses, favourites, reward points and chat messages will be deleted. Past order and payment records are kept for tax purposes without your name or phone. This can't be undone.",
+      [
+        { text: "Keep my account", style: "cancel" },
+        {
+          text: "Delete", style: "destructive",
+          onPress: async () => {
+            try {
+              await api.deleteAccount();
+              Alert.alert("Account deleted", "Your account has been deleted.");
+              logout();
+            } catch (e) {
+              Alert.alert("Couldn't delete", e.message);
+            }
+          },
+        },
+      ]
+    );
+  }
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={{ paddingBottom: spacing.xl }} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
@@ -113,6 +136,7 @@ export default function ProfileScreen({ navigation }) {
           <Row label={t("my_orders")} onPress={() => navigation.navigate("OrdersTab")} />
           <Row label={t("favourites")} onPress={() => go("Favourites")} />
           <Row label={t("weekly_box")} value={activePlans ? "Active" : null} onPress={() => go("Subscribe")} />
+          <Row label={t("book_venue")} onPress={() => go("Venues")} />
           <Row label={t("my_venue_requests")} onPress={() => go("MyVenueRequests")} />
           <Row label={t("saved_addresses")} value={addrCount ? String(addrCount) : null} onPress={() => go("SavedAddresses")} last />
         </View>
@@ -134,10 +158,14 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={[styles.card, { paddingVertical: 4 }]}>
           <Row label={t("help_support")} onPress={() => navigation.navigate("ChatTab")} />
-          <TouchableOpacity style={[styles.row, { borderBottomWidth: 0 }]} onPress={logout}>
+          <TouchableOpacity style={styles.row} onPress={logout}>
             <Text style={[styles.rowLabel, { color: colors.chili, fontWeight: "600" }]}>{t("log_out")}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.row, { borderBottomWidth: 0 }]} onPress={confirmDelete}>
+            <Text style={[styles.rowLabel, { color: colors.inkFaint }]}>Delete my account</Text>
+          </TouchableOpacity>
         </View>
+        <Text style={styles.small}>App version {APP_BUILD}</Text>
       </View>
     </ScrollView>
   );

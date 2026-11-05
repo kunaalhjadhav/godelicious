@@ -14,7 +14,12 @@ export default function DeleteAccountPage() {
 
         <div className="space-y-6 text-sm text-ink/80 leading-relaxed">
           <section>
-            <h2 className="font-display text-xl text-ink mb-2">How to ask</h2>
+            <h2 className="font-display text-xl text-ink mb-2">In the app</h2>
+            <p>Open the {APP_NAME} app, go to <strong>Profile</strong> and tap <strong>Delete my account</strong>. Your account is deleted straight away.</p>
+          </section>
+
+          <section>
+            <h2 className="font-display text-xl text-ink mb-2">Or ask us</h2>
             <ol className="list-decimal pl-5 space-y-1">
               <li>Contact us{CONTACT_EMAIL ? <> by email at <strong>{CONTACT_EMAIL}</strong> or</> : null} by phone or WhatsApp on <strong>{CONTACT_PHONE}</strong>.</li>
               <li>Say "Delete my {APP_NAME} account" and give the phone number or email you signed up with, so we can find your account.</li>

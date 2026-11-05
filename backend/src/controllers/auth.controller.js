@@ -79,4 +79,52 @@ async function me(req, res) {
   return res.json({ user });
 }
 
-module.exports = { register, login, me };
+// DELETE /api/auth/me (CUSTOMER) - the customer deletes their own account from the app.
+// Personal details are removed; order and payment records stay (needed for tax), no longer
+// linked to a name, phone or email.
+async function deleteMe(req, res) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "Account not found." });
+    if (user.role !== "CUSTOMER") {
+      return res.status(403).json({ error: "Staff and partner accounts are removed by the Godelicious admin." });
+    }
+    const open = await prisma.order.count({
+      where: { userId: user.id, status: { in: ["PENDING", "CONFIRMED", "PREPARING", "OUT_FOR_DELIVERY"] } },
+    });
+    if (open > 0) {
+      return res.status(409).json({ error: `You have ${open} order${open > 1 ? "s" : ""} in progress. Please wait until ${open > 1 ? "they are" : "it is"} delivered or cancelled, then try again.` });
+    }
+    const id = user.id;
+    const crypto = require("crypto");
+    // Each clean-up step is independent, so one missing table never blocks the deletion.
+    const steps = [
+      () => prisma.favorite.deleteMany({ where: { userId: id } }),
+      () => prisma.savedAddress.deleteMany({ where: { userId: id } }),
+      () => prisma.deviceToken.deleteMany({ where: { userId: id } }),
+      () => prisma.notificationRead.deleteMany({ where: { userId: id } }),
+      () => prisma.message.deleteMany({ where: { customerId: id } }),
+      () => prisma.subscription.updateMany({ where: { userId: id }, data: { status: "CANCELLED" } }),
+    ];
+    for (const step of steps) {
+      try { await step(); } catch (e) { console.warn("[deleteMe] clean-up step skipped:", e.message); }
+    }
+    await prisma.user.update({
+      where: { id },
+      data: {
+        name: "Deleted user",
+        email: `deleted-${id}@deleted.godelicious.local`,
+        phone: null,
+        passwordHash: crypto.randomBytes(32).toString("hex"),
+        referralCode: null,
+        loyaltyPoints: 0,
+      },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("deleteMe error:", err);
+    res.status(500).json({ error: "Could not delete the account. Please try again or contact us." });
+  }
+}
+
+module.exports = { register, login, me, deleteMe };
