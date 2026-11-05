@@ -473,6 +473,9 @@ export default function CheckoutPage() {
           >
             {submitting ? "Processing…" : paymentMethod === "COD" ? `Pay ${rupees(cod.advance)} advance & place order` : "Pay & place order"}
           </button>
+          <p className="text-xs text-ink/50 mt-3 text-center">
+            By placing this order you agree to our <a href="/refund-policy" target="_blank" className="underline">Cancellation &amp; Refund Policy</a>.
+          </p>
         </form>
       </div>
     </div>
