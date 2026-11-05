@@ -6,7 +6,7 @@ import Papa from "papaparse";
 import Shell from "@/components/Shell";
 import { api, API_URL } from "@/lib/api";
 import { APP_NAME } from "@/lib/brand";
-import { duplicateIds, matchesSearch, normalizeName } from "@/lib/menuTools";
+import { duplicateIds, matchesSearch, sortItems, SORT_OPTIONS, loadSort, saveSort, normalizeName } from "@/lib/menuTools";
 
 const EMPTY_FORM = { name: "", description: "", price: "", categoryId: "", isVeg: true, stockQty: "", imageUrl: "", brandId: "", soldByWeight: false, plannerRole: "", servesPerUnit: "", minOrderGrams: "" };
 
@@ -27,6 +27,9 @@ export default function MenuPage() {
   const [fCategory, setFCategory] = useState("");
   const [fType, setFType] = useState("");   // veg | nonveg | weight | box
   const [fStatus, setFStatus] = useState(""); // available | hidden | low | out
+  const [sort, setSort] = useState("code-asc");
+  useEffect(() => { setSort(loadSort("menu")); }, []);
+  function changeSort(v) { setSort(v); saveSort("menu", v); }
   const [onlyDupes, setOnlyDupes] = useState(false);
   const [confirmDupe, setConfirmDupe] = useState(false);
 
@@ -172,7 +175,7 @@ export default function MenuPage() {
   const liveDupes = typedKey
     ? items.filter((i) => i.id !== editingId && normalizeName(i.name) === typedKey && (!form.categoryId || i.categoryId === form.categoryId))
     : [];
-  const shown = items.filter((i) => {
+  const shown = sortItems(items.filter((i) => {
     if (!matchesSearch(i, search)) return false;
     if (fCategory && i.categoryId !== fCategory) return false;
     if (fType === "veg" && !i.isVeg) return false;
@@ -185,7 +188,7 @@ export default function MenuPage() {
     if (fStatus === "out" && i.stockQty > 0) return false;
     if (onlyDupes && !dupIds.has(i.id)) return false;
     return true;
-  });
+  }), sort);
   const filtersOn = search || fCategory || fType || fStatus || onlyDupes;
 
   return (
@@ -219,6 +222,9 @@ export default function MenuPage() {
                 <option value="available">Available</option><option value="hidden">Hidden</option>
                 <option value="low">Low stock (under 10)</option><option value="out">Out of stock</option>
               </select>
+              <select value={sort} onChange={(e) => changeSort(e.target.value)} className="px-2 py-1.5 border border-line rounded-sm text-xs" title="Sort the list">
+                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>Sort: {o.label}</option>)}
+              </select>
               <label className="text-xs flex items-center gap-1">
                 <input type="checkbox" checked={onlyDupes} onChange={(e) => setOnlyDupes(e.target.checked)} />
                 Duplicates only{dupIds.size > 0 ? ` (${dupIds.size})` : ""}
@@ -235,7 +241,11 @@ export default function MenuPage() {
             <thead className="text-left text-xs font-mono uppercase text-ink/50 border-b border-line">
               <tr>
                 <th className="px-3 py-3">#</th>
-                <th className="px-3 py-3">Code</th>
+                <th className="px-3 py-3">
+                <button type="button" onClick={() => changeSort(sort === "code-asc" ? "code-desc" : "code-asc")} className="uppercase hover:text-ink" title="Sort by code">
+                  Code {sort === "code-asc" ? "↑" : sort === "code-desc" ? "↓" : ""}
+                </button>
+              </th>
                 <th className="px-4 py-3"></th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Category</th>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { api } from "@/lib/api";
-import { duplicateIds, matchesSearch } from "@/lib/menuTools";
+import { duplicateIds, matchesSearch, sortItems, SORT_OPTIONS, loadSort, saveSort } from "@/lib/menuTools";
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
@@ -12,6 +12,9 @@ export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [fCategory, setFCategory] = useState("");
   const [fStock, setFStock] = useState(""); // low | out | ok
+  const [sort, setSort] = useState("code-asc");
+  useEffect(() => { setSort(loadSort("inventory")); }, []);
+  function changeSort(v) { setSort(v); saveSort("inventory", v); }
   const [onlyDupes, setOnlyDupes] = useState(false);
 
   function load() {
@@ -39,7 +42,7 @@ export default function InventoryPage() {
 
   const dupIds = duplicateIds(items, (i) => i.category?.name);
   const categories = [...new Set(items.map((i) => i.category?.name).filter(Boolean))].sort();
-  const shown = items.filter((i) => {
+  const shown = sortItems(items.filter((i) => {
     if (!matchesSearch(i, search)) return false;
     if (fCategory && i.category?.name !== fCategory) return false;
     if (fStock === "out" && i.stockQty > 0) return false;
@@ -47,7 +50,7 @@ export default function InventoryPage() {
     if (fStock === "ok" && i.stockQty < 10) return false;
     if (onlyDupes && !dupIds.has(i.id)) return false;
     return true;
-  });
+  }), sort);
   const filtersOn = search || fCategory || fStock || onlyDupes;
 
   return (
@@ -75,6 +78,9 @@ export default function InventoryPage() {
               <option value="low">Low (under 10)</option>
               <option value="ok">Healthy (10 or more)</option>
             </select>
+            <select value={sort} onChange={(e) => changeSort(e.target.value)} className="px-2 py-1.5 border border-line rounded-sm text-xs" title="Sort the list">
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>Sort: {o.label}</option>)}
+            </select>
             <label className="text-xs flex items-center gap-1">
               <input type="checkbox" checked={onlyDupes} onChange={(e) => setOnlyDupes(e.target.checked)} />
               Duplicates only{dupIds.size > 0 ? ` (${dupIds.size})` : ""}
@@ -89,7 +95,11 @@ export default function InventoryPage() {
           <thead className="text-left text-xs font-mono uppercase text-ink/50 border-b border-line">
             <tr>
               <th className="px-3 py-3">#</th>
-              <th className="px-3 py-3">Code</th>
+              <th className="px-3 py-3">
+                <button type="button" onClick={() => changeSort(sort === "code-asc" ? "code-desc" : "code-asc")} className="uppercase hover:text-ink" title="Sort by code">
+                  Code {sort === "code-asc" ? "↑" : sort === "code-desc" ? "↓" : ""}
+                </button>
+              </th>
               <th className="px-4 py-3">Item</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Current stock</th>
