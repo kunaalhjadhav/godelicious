@@ -292,9 +292,7 @@ async function notifyVenueRequest(bookingId) {
       data: { type: "venue_request", bookingId: b.id, url: "/venue/calendar" },
     });
     const phone = b.venue.contactPhone || b.venue.owner.phone;
-    if (phone) await sendWhatsApp(phone, `${text}\nAccept or reject in the venue portal > Calendar & Requests.`);
-    const admin = await adminWhatsappNumber();
-    if (admin) await sendWhatsApp(admin, text);
+    if (phone) await sendWhatsApp(phone, text);
     await pushMany(await staffUserIds(), { title: "New venue request", body: `${b.venue.name} - ${b.eventType} on ${d}`, data: { type: "venue_request", url: "/venues" } });
   } catch (err) {
     console.error("notifyVenueRequest failed:", err.message);
@@ -311,69 +309,21 @@ async function notifyVenueDecision(bookingId) {
       ? `${b.venue.name} accepted your ${b.eventType} on ${d}.${b.quotedAmount ? ` Quote: ${rupees(b.quotedAmount)}.` : ""}`
       : `${b.venue.name} could not take your ${b.eventType} on ${d}.${b.ownerNote ? ` ${b.ownerNote}` : ""}`;
     await sendPushToUser(b.customerId, { title: accepted ? "Venue request accepted" : "Venue request declined", body, data: { type: "venue_decision", bookingId: b.id } });
-    await sendWhatsApp(b.contactPhone, accepted ? `Godelicious: ${body} Pay the advance in the app (Profile > My venue requests) to confirm your booking.` : `Godelicious: ${body}`);
-    const admin = await adminWhatsappNumber();
-    if (admin) await sendWhatsApp(admin, `VENUE ${accepted ? "ACCEPTED" : "DECLINED"}\n${b.venue.name} - ${b.eventType} on ${d}${b.quotedAmount && accepted ? `\nQuote ${rupees(b.quotedAmount)}` : ""}\nCustomer: ${b.contactPhone}`);
+    await sendWhatsApp(b.contactPhone, body);
   } catch (err) {
     console.error("notifyVenueDecision failed:", err.message);
   }
 }
 
-async function notifyNewVenuePartner(venueName, ownerName, phone) {
+async function notifyNewVenuePartner(venueName) {
   try {
     await pushMany(await staffUserIds(), { title: "New venue partner", body: `${venueName} registered and awaits approval`, data: { type: "approval", url: "/venues" } });
-    const admin = await adminWhatsappNumber();
-    if (admin) await sendWhatsApp(admin, `NEW VENUE PARTNER\n${venueName}${ownerName ? `\n${ownerName}` : ""}${phone ? ` - ${phone}` : ""}\nApprove in Admin > Venue Partners.`);
   } catch (err) {
     console.error("notifyNewVenuePartner failed:", err.message);
   }
 }
 
-// Venue approved by admin -> owner
-async function notifyVenueApproved(venueId) {
-  try {
-    const v = await prisma.venue.findUnique({ where: { id: venueId }, include: { owner: true } });
-    if (!v) return;
-    await sendPushToUser(v.ownerId, { title: "Your venue is live", body: `${v.name} is approved and now shows to customers.`, data: { type: "venue_approved", url: "/venue/dashboard" } });
-    const phone = v.contactPhone || v.owner?.phone;
-    if (phone) await sendWhatsApp(phone, `Godelicious: ${v.name} is approved and now visible to customers. Keep your calendar and tariffs up to date in the venue portal.`);
-  } catch (err) { console.error("notifyVenueApproved failed:", err.message); }
-}
-
-// Customer paid the venue advance -> owner, company number, customer
-async function notifyVenueAdvancePaid(bookingId) {
-  try {
-    const b = await prisma.venueBooking.findUnique({ where: { id: bookingId }, include: { venue: { include: { owner: true } }, customer: { select: { name: true } } } });
-    if (!b) return;
-    const d = new Date(b.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-    const bal = Math.max(0, (b.quotedAmount || 0) - (b.advanceAmount || 0));
-    const ownerText = `BOOKING CONFIRMED - ADVANCE PAID\n${b.venue.name}: ${b.eventType} on ${d}, ${b.guestCount} guests\n${b.customer?.name || "Customer"} - ${b.contactPhone}\nAdvance ${rupees(b.advanceAmount)} paid online. Balance ${rupees(bal)} to settle with the customer.`;
-    await sendPushToUser(b.venue.ownerId, { title: "Booking confirmed", body: `${b.eventType} on ${d}: advance ${rupees(b.advanceAmount)} paid`, data: { type: "venue_advance", bookingId: b.id, url: "/venue/bookings" } });
-    const ownerPhone = b.venue.contactPhone || b.venue.owner?.phone;
-    if (ownerPhone) await sendWhatsApp(ownerPhone, ownerText);
-    const admin = await adminWhatsappNumber();
-    if (admin) await sendWhatsApp(admin, ownerText);
-    await sendWhatsApp(b.contactPhone, `Godelicious: your booking at ${b.venue.name} for ${d} is confirmed. Advance ${rupees(b.advanceAmount)} received. Balance ${rupees(bal)} is paid to the venue as agreed.`);
-  } catch (err) { console.error("notifyVenueAdvancePaid failed:", err.message); }
-}
-
-// Customer cancelled a request -> owner, company number
-async function notifyVenueCancelled(bookingId) {
-  try {
-    const b = await prisma.venueBooking.findUnique({ where: { id: bookingId }, include: { venue: { include: { owner: true } } } });
-    if (!b) return;
-    const d = new Date(b.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-    const text = `VENUE REQUEST CANCELLED BY CUSTOMER\n${b.venue.name}: ${b.eventType} on ${d}\nThe date is free again.`;
-    await sendPushToUser(b.venue.ownerId, { title: "Request cancelled", body: `${b.eventType} on ${d} was cancelled by the customer`, data: { type: "venue_cancel", url: "/venue/calendar" } });
-    const ownerPhone = b.venue.contactPhone || b.venue.owner?.phone;
-    if (ownerPhone) await sendWhatsApp(ownerPhone, text);
-    const admin = await adminWhatsappNumber();
-    if (admin) await sendWhatsApp(admin, text);
-  } catch (err) { console.error("notifyVenueCancelled failed:", err.message); }
-}
-
 module.exports = {
-  notifyVenueApproved, notifyVenueAdvancePaid, notifyVenueCancelled,
   notifyNewOrder, notifyPaymentReceived, notifyOrderUpdate,
   notifyNewBrandPartner, notifyBrandApproved, notifyPartnerMessage,
   notifyAdminsApprovalNeeded, notifyBrandDecision,

@@ -26,17 +26,15 @@ async function sendMyMessage(req, res) {
 
   // Notify every admin/staff device — there's no single "admin inbox" user,
   // so this fans out to whichever staff accounts have push registered.
-  prisma.user.findUnique({ where: { id: req.user.id }, select: { name: true, role: true, brand: { select: { name: true } }, venue: { select: { name: true } } } })
+  prisma.user.findUnique({ where: { id: req.user.id }, select: { name: true, role: true, brand: { select: { name: true } } } })
     .then((sender) => {
       // Brand partner messages are also copied to the company WhatsApp number.
       if (sender?.role === "BRAND_PARTNER") {
         require("../services/notify.service").notifyPartnerMessage(sender.brand?.name || sender.name, body.trim());
-      } else if (sender?.role === "VENUE_PARTNER") {
-        require("../services/notify.service").notifyPartnerMessage(`${sender.venue?.name || sender.name} (venue)`, body.trim());
       }
       return prisma.user.findMany({ where: { role: { in: ["ADMIN", "STAFF"] } }, select: { id: true } })
         .then((admins) => Promise.allSettled(admins.map((a) => sendPushToUser(a.id, {
-          title: `New message from ${sender?.role === "BRAND_PARTNER" ? `${sender.brand?.name || sender.name} (brand partner)` : sender?.role === "VENUE_PARTNER" ? `${sender.venue?.name || sender.name} (venue partner)` : sender?.name || "a customer"}`,
+          title: `New message from ${sender?.role === "BRAND_PARTNER" ? `${sender.brand?.name || sender.name} (brand partner)` : sender?.name || "a customer"}`,
           body: body.trim().slice(0, 100),
           data: { type: "chat_message", customerId: req.user.id },
         }))));
@@ -49,14 +47,13 @@ async function sendMyMessage(req, res) {
 // GET /api/chat/threads (ADMIN/STAFF) - one row per customer with an unread count
 async function listThreads(req, res) {
   const customers = await prisma.user.findMany({
-    where: { role: { in: ["CUSTOMER", "BRAND_PARTNER", "VENUE_PARTNER"] }, messages: { some: {} } },
+    where: { role: { in: ["CUSTOMER", "BRAND_PARTNER"] }, messages: { some: {} } },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
       brand: { select: { name: true } },
-      venue: { select: { name: true } },
       messages: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -70,9 +67,8 @@ async function listThreads(req, res) {
   const threads = customers
     .map((c) => ({
       customerId: c.id,
-      customerName: c.role === "BRAND_PARTNER" ? `${c.brand?.name || c.name} - brand partner`
-        : c.role === "VENUE_PARTNER" ? `${c.venue?.name || c.name} - venue partner` : c.name,
-      isPartner: c.role === "BRAND_PARTNER" || c.role === "VENUE_PARTNER",
+      customerName: c.role === "BRAND_PARTNER" ? `${c.brand?.name || c.name} - brand partner` : c.name,
+      isPartner: c.role === "BRAND_PARTNER",
       customerEmail: c.email,
       lastMessage: c.messages[0] || null,
       unreadCount: c._count.messages,
