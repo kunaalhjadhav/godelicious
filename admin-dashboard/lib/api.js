@@ -95,6 +95,8 @@ export const api = {
 
   // Chat
   listChatThreads: () => request("/api/chat/threads"),
+  myChat: () => request("/api/chat/my"),
+  sendMyChat: (body) => request("/api/chat/my", { method: "POST", body: { body } }),
   getChatThread: (customerId) => request(`/api/chat/threads/${customerId}`),
   replyToThread: (customerId, body) =>
     request(`/api/chat/threads/${customerId}`, { method: "POST", body: { body } }),

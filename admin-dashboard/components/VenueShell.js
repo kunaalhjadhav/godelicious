@@ -10,8 +10,10 @@ import AlertSetup from "@/components/AlertSetup";
 const NAV = [
   { href: "/venue/dashboard", label: "Dashboard" },
   { href: "/venue/calendar", label: "Calendar & Requests" },
+  { href: "/venue/bookings", label: "Bookings & Payments" },
   { href: "/venue/tariffs", label: "Tariffs" },
   { href: "/venue/profile", label: "Venue Details" },
+  { href: "/venue/chat", label: "Chat with us" },
 ];
 
 export default function VenueShell({ children }) {

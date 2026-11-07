@@ -96,6 +96,11 @@ export default function VenueCalendarPage() {
         {b.services.length > 0 && <div className="text-xs text-ink/50">Services: {b.services.join(", ")}</div>}
         {b.notes && <div className="text-xs text-ink/50 mt-1">“{b.notes}”</div>}
         {b.status === "ACCEPTED" && b.quotedAmount != null && <div className="text-sm text-basil mt-1">Quoted ₹{Math.round(b.quotedAmount).toLocaleString("en-IN")}</div>}
+        {b.status === "ACCEPTED" && (
+          b.advancePaid
+            ? <div className="text-xs mt-1 inline-block px-2 py-0.5 rounded-sm bg-basil/10 text-basil">Confirmed · advance ₹{Math.round(b.advanceAmount || 0).toLocaleString("en-IN")} paid</div>
+            : <div className="text-xs mt-1 inline-block px-2 py-0.5 rounded-sm bg-saffron/15 text-saffron2">Waiting for the customer to pay the advance</div>
+        )}
         {b.ownerNote && b.status !== "PENDING" && <div className="text-xs text-ink/50 mt-1">Your note: {b.ownerNote}</div>}
 
         {b.status === "PENDING" && (

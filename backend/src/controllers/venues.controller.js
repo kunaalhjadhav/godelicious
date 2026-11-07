@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const prisma = require("../config/db");
 const { signToken } = require("../utils/jwt");
-const { notifyVenueRequest, notifyVenueDecision, notifyNewVenuePartner } = require("../services/notify.service");
+const { notifyVenueRequest, notifyVenueDecision, notifyNewVenuePartner, notifyVenueApproved, notifyVenueAdvancePaid, notifyVenueCancelled } = require("../services/notify.service");
 
 // ---------- helpers ----------
 const parseList = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
@@ -54,7 +54,7 @@ async function register(req, res) {
       });
       return { user, venue };
     });
-    notifyNewVenuePartner(venue.name);
+    notifyNewVenuePartner(venue.name, name, phone);
     res.status(201).json({
       token: signToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -431,6 +431,7 @@ async function verifyAdvance(req, res) {
     where: { id: b.id },
     data: { advancePaid: true, advancePaymentId: razorpayPaymentId, advancePaidAt: new Date() },
   });
+  notifyVenueAdvancePaid(booking.id);
   res.json({ booking });
 }
 
@@ -441,6 +442,7 @@ async function cancelBooking(req, res) {
   if (b.status === "REJECTED" || b.status === "CANCELLED") return res.status(400).json({ error: "This request is already closed." });
   if (b.advancePaid) return res.status(400).json({ error: "The advance is paid. Please call the venue or Godelicious to cancel and discuss a refund." });
   const updated = await prisma.venueBooking.update({ where: { id: b.id }, data: { status: "CANCELLED" } });
+  notifyVenueCancelled(b.id);
   res.json({ booking: updated });
 }
 
@@ -461,6 +463,7 @@ async function adminList(req, res) {
 async function adminUpdate(req, res) {
   try {
     const { isApproved, isActive } = req.body;
+    const before = await prisma.venue.findUnique({ where: { id: req.params.id }, select: { isApproved: true } });
     const venue = await prisma.venue.update({
       where: { id: req.params.id },
       data: {
@@ -468,6 +471,7 @@ async function adminUpdate(req, res) {
         ...(isActive !== undefined && { isActive: Boolean(isActive) }),
       },
     });
+    if (before && !before.isApproved && venue.isApproved) notifyVenueApproved(venue.id);
     res.json({ venue: shapeVenue(venue) });
   } catch (err) {
     res.status(404).json({ error: "Venue not found." });

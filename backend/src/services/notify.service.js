@@ -165,8 +165,14 @@ const STATUS_LABEL = {
 };
 async function notifyOrderUpdate(orderId, status, note) {
   try {
-    const order = await prisma.order.findUnique({ where: { id: orderId }, include: { user: { select: { name: true, phone: true } } } });
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: { select: { name: true, phone: true } }, items: { include: { menuItem: { include: { brand: true } } } } },
+    });
     if (!order) return;
+
+    // Brand partners whose items are in the order
+    if (!note) await notifyPartnersOrderUpdate(order, status).catch((e) => console.error("partner update failed:", e.message));
 
     // Customer
     const due = order.paymentMethod === "COD" && order.paymentStatus !== "PAID"
@@ -193,6 +199,56 @@ async function notifyOrderUpdate(orderId, status, note) {
       `Total ${rupees(order.totalAmount)}${cashDue}${note ? `\n${note}` : ""}`);
   } catch (err) {
     console.error("notifyOrderUpdate failed:", err.message);
+  }
+}
+
+// ---- Brand partners: registration, approval, messages ----
+async function notifyNewBrandPartner(brandName, contactName, phone) {
+  try {
+    await pushMany(await staffUserIds(), {
+      title: "New brand partner", body: `${brandName} registered and awaits approval`, data: { type: "approval", url: "/brands" },
+    });
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `NEW BRAND PARTNER\n${brandName}\n${contactName}${phone ? ` - ${phone}` : ""}\nApprove in Admin > Brands.`);
+  } catch (err) { console.error("notifyNewBrandPartner failed:", err.message); }
+}
+async function notifyBrandApproved(brandId) {
+  try {
+    const brand = await prisma.brand.findUnique({ where: { id: brandId } });
+    if (!brand) return;
+    const users = await prisma.user.findMany({ where: { brandId }, select: { id: true } });
+    await pushMany(users.map((u) => u.id), {
+      title: "Your brand is approved", body: `${brand.name} is live on Godelicious. Approved menu items now show to customers.`,
+      data: { type: "brand_approved", url: "/partner/dashboard" },
+    });
+    if (brand.contactPhone) {
+      await sendWhatsApp(brand.contactPhone, `Godelicious: ${brand.name} is approved. Your approved menu items now show to customers. Sign in to the partner portal to manage orders and menu.`);
+    }
+  } catch (err) { console.error("notifyBrandApproved failed:", err.message); }
+}
+async function notifyPartnerMessage(brandName, text) {
+  try {
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `MESSAGE FROM BRAND PARTNER\n${brandName}: ${String(text).slice(0, 300)}\nReply in Admin > Chat.`);
+  } catch (err) { console.error("notifyPartnerMessage failed:", err.message); }
+}
+// Tell each brand involved in an order when its status changes.
+async function notifyPartnersOrderUpdate(order, status) {
+  const label = CUSTOMER_STATUS[status] || String(status).toLowerCase();
+  const byBrand = new Map();
+  for (const oi of order.items || []) {
+    const b = oi.menuItem?.brand;
+    if (b && !byBrand.has(b.id)) byBrand.set(b.id, b);
+  }
+  for (const brand of byBrand.values()) {
+    const users = await prisma.user.findMany({ where: { brandId: brand.id }, select: { id: true } });
+    await pushMany(users.map((u) => u.id), {
+      title: `Order #${shortId(order.id)} ${label}`, body: `Status changed to ${label}.`,
+      data: { type: "order_status", orderId: order.id, url: "/partner/orders" },
+    });
+    if (brand.contactPhone && ["CONFIRMED", "CANCELLED", "OUT_FOR_DELIVERY"].includes(status)) {
+      await sendWhatsApp(brand.contactPhone, `Godelicious: order #${shortId(order.id)} for ${brand.name} is now ${label}.${status === "CANCELLED" ? " Please do not prepare it." : ""}`);
+    }
   }
 }
 
@@ -236,7 +292,9 @@ async function notifyVenueRequest(bookingId) {
       data: { type: "venue_request", bookingId: b.id, url: "/venue/calendar" },
     });
     const phone = b.venue.contactPhone || b.venue.owner.phone;
-    if (phone) await sendWhatsApp(phone, text);
+    if (phone) await sendWhatsApp(phone, `${text}\nAccept or reject in the venue portal > Calendar & Requests.`);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, text);
     await pushMany(await staffUserIds(), { title: "New venue request", body: `${b.venue.name} - ${b.eventType} on ${d}`, data: { type: "venue_request", url: "/venues" } });
   } catch (err) {
     console.error("notifyVenueRequest failed:", err.message);
@@ -253,22 +311,71 @@ async function notifyVenueDecision(bookingId) {
       ? `${b.venue.name} accepted your ${b.eventType} on ${d}.${b.quotedAmount ? ` Quote: ${rupees(b.quotedAmount)}.` : ""}`
       : `${b.venue.name} could not take your ${b.eventType} on ${d}.${b.ownerNote ? ` ${b.ownerNote}` : ""}`;
     await sendPushToUser(b.customerId, { title: accepted ? "Venue request accepted" : "Venue request declined", body, data: { type: "venue_decision", bookingId: b.id } });
-    await sendWhatsApp(b.contactPhone, body);
+    await sendWhatsApp(b.contactPhone, accepted ? `Godelicious: ${body} Pay the advance in the app (Profile > My venue requests) to confirm your booking.` : `Godelicious: ${body}`);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `VENUE ${accepted ? "ACCEPTED" : "DECLINED"}\n${b.venue.name} - ${b.eventType} on ${d}${b.quotedAmount && accepted ? `\nQuote ${rupees(b.quotedAmount)}` : ""}\nCustomer: ${b.contactPhone}`);
   } catch (err) {
     console.error("notifyVenueDecision failed:", err.message);
   }
 }
 
-async function notifyNewVenuePartner(venueName) {
+async function notifyNewVenuePartner(venueName, ownerName, phone) {
   try {
     await pushMany(await staffUserIds(), { title: "New venue partner", body: `${venueName} registered and awaits approval`, data: { type: "approval", url: "/venues" } });
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `NEW VENUE PARTNER\n${venueName}${ownerName ? `\n${ownerName}` : ""}${phone ? ` - ${phone}` : ""}\nApprove in Admin > Venue Partners.`);
   } catch (err) {
     console.error("notifyNewVenuePartner failed:", err.message);
   }
 }
 
+// Venue approved by admin -> owner
+async function notifyVenueApproved(venueId) {
+  try {
+    const v = await prisma.venue.findUnique({ where: { id: venueId }, include: { owner: true } });
+    if (!v) return;
+    await sendPushToUser(v.ownerId, { title: "Your venue is live", body: `${v.name} is approved and now shows to customers.`, data: { type: "venue_approved", url: "/venue/dashboard" } });
+    const phone = v.contactPhone || v.owner?.phone;
+    if (phone) await sendWhatsApp(phone, `Godelicious: ${v.name} is approved and now visible to customers. Keep your calendar and tariffs up to date in the venue portal.`);
+  } catch (err) { console.error("notifyVenueApproved failed:", err.message); }
+}
+
+// Customer paid the venue advance -> owner, company number, customer
+async function notifyVenueAdvancePaid(bookingId) {
+  try {
+    const b = await prisma.venueBooking.findUnique({ where: { id: bookingId }, include: { venue: { include: { owner: true } }, customer: { select: { name: true } } } });
+    if (!b) return;
+    const d = new Date(b.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    const bal = Math.max(0, (b.quotedAmount || 0) - (b.advanceAmount || 0));
+    const ownerText = `BOOKING CONFIRMED - ADVANCE PAID\n${b.venue.name}: ${b.eventType} on ${d}, ${b.guestCount} guests\n${b.customer?.name || "Customer"} - ${b.contactPhone}\nAdvance ${rupees(b.advanceAmount)} paid online. Balance ${rupees(bal)} to settle with the customer.`;
+    await sendPushToUser(b.venue.ownerId, { title: "Booking confirmed", body: `${b.eventType} on ${d}: advance ${rupees(b.advanceAmount)} paid`, data: { type: "venue_advance", bookingId: b.id, url: "/venue/bookings" } });
+    const ownerPhone = b.venue.contactPhone || b.venue.owner?.phone;
+    if (ownerPhone) await sendWhatsApp(ownerPhone, ownerText);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, ownerText);
+    await sendWhatsApp(b.contactPhone, `Godelicious: your booking at ${b.venue.name} for ${d} is confirmed. Advance ${rupees(b.advanceAmount)} received. Balance ${rupees(bal)} is paid to the venue as agreed.`);
+  } catch (err) { console.error("notifyVenueAdvancePaid failed:", err.message); }
+}
+
+// Customer cancelled a request -> owner, company number
+async function notifyVenueCancelled(bookingId) {
+  try {
+    const b = await prisma.venueBooking.findUnique({ where: { id: bookingId }, include: { venue: { include: { owner: true } } } });
+    if (!b) return;
+    const d = new Date(b.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    const text = `VENUE REQUEST CANCELLED BY CUSTOMER\n${b.venue.name}: ${b.eventType} on ${d}\nThe date is free again.`;
+    await sendPushToUser(b.venue.ownerId, { title: "Request cancelled", body: `${b.eventType} on ${d} was cancelled by the customer`, data: { type: "venue_cancel", url: "/venue/calendar" } });
+    const ownerPhone = b.venue.contactPhone || b.venue.owner?.phone;
+    if (ownerPhone) await sendWhatsApp(ownerPhone, text);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, text);
+  } catch (err) { console.error("notifyVenueCancelled failed:", err.message); }
+}
+
 module.exports = {
+  notifyVenueApproved, notifyVenueAdvancePaid, notifyVenueCancelled,
   notifyNewOrder, notifyPaymentReceived, notifyOrderUpdate,
+  notifyNewBrandPartner, notifyBrandApproved, notifyPartnerMessage,
   notifyAdminsApprovalNeeded, notifyBrandDecision,
   notifyVenueRequest, notifyVenueDecision, notifyNewVenuePartner,
 };

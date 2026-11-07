@@ -35,6 +35,7 @@ async function createBrand(req, res) {
 // PATCH /api/brands/:id (ADMIN)
 async function updateBrand(req, res) {
   const { name, logoUrl, contactEmail, contactPhone, commissionPercent, isActive, isApproved } = req.body;
+  const before = await prisma.brand.findUnique({ where: { id: req.params.id }, select: { isApproved: true } });
   const brand = await prisma.brand.update({
     where: { id: req.params.id },
     data: {
@@ -47,6 +48,9 @@ async function updateBrand(req, res) {
       ...(isApproved !== undefined && { isApproved: Boolean(isApproved) }),
     },
   });
+  if (before && !before.isApproved && brand.isApproved) {
+    require("../services/notify.service").notifyBrandApproved(brand.id);
+  }
   res.json({ brand });
 }
 

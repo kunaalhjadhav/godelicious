@@ -2,7 +2,7 @@ const { checkBackInStock } = require("../services/backInStock.service");
 const bcrypt = require("bcryptjs");
 const prisma = require("../config/db");
 const { signToken } = require("../utils/jwt");
-const { notifyAdminsApprovalNeeded } = require("../services/notify.service");
+const { notifyAdminsApprovalNeeded, notifyNewBrandPartner } = require("../services/notify.service");
 
 // POST /api/brand-partners/register (public)
 // Simple one-step self-registration: creates a Brand (unapproved) and a
@@ -34,6 +34,7 @@ async function register(req, res) {
       return { brand, user };
     });
 
+    notifyNewBrandPartner(brandName, name, phone);
     const token = signToken(result.user);
     res.status(201).json({
       token,

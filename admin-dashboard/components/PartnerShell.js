@@ -16,6 +16,7 @@ const NAV = [
   { href: "/partner/locations", label: "Locations" },
   { href: "/partner/offers", label: "Offers" },
   { href: "/partner/earnings", label: "Earnings" },
+  { href: "/partner/chat", label: "Chat with us" },
 ];
 
 export default function PartnerShell({ children }) {

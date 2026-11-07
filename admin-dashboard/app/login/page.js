@@ -74,8 +74,17 @@ export default function LoginPage() {
             {submitting ? "Signing in…" : "Sign in"}
           </button>
 
-          <p className="text-xs text-ink/40 mt-4 text-center font-mono">
-            seed: admin@godelicious.com / Admin@123
+          <p className="text-sm text-ink/60 mt-5 text-center">
+            Brand partner?{" "}
+            <a href="/partner/login" className="text-saffron2 hover:underline">Sign in</a>
+            {" or "}
+            <a href="/partner/register" className="text-saffron2 hover:underline">register your brand</a>
+          </p>
+          <p className="text-sm text-ink/60 mt-2 text-center">
+            Venue owner?{" "}
+            <a href="/venue/login" className="text-saffron2 hover:underline">Sign in</a>
+            {" or "}
+            <a href="/venue/register" className="text-saffron2 hover:underline">register your venue</a>
           </p>
         </form>
       </div>
