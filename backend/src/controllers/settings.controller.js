@@ -19,7 +19,7 @@ async function getSettings(req, res) {
 // PATCH /api/settings (ADMIN)
 async function updateSettings(req, res) {
   const {
-    minOrderAmount, codEnabled, staffPricePerPerson, adminWhatsapp, whatsappAlerts,
+    minOrderAmount, codEnabled, staffPricePerPerson, adminWhatsapp, whatsappAlerts, customerWhatsappAlerts,
     deliveryFee, freeDeliveryAbove, subscriptionDiscountPct, referralBonusPoints,
     gstPercent, couponMinOrder, mealBoxMinQty, serviceAreaOn, serviceLat, serviceLng, serviceRadiusKm,
   } = req.body;
@@ -31,6 +31,7 @@ async function updateSettings(req, res) {
       ...(staffPricePerPerson !== undefined && { staffPricePerPerson: Number(staffPricePerPerson) }),
       ...(adminWhatsapp !== undefined && { adminWhatsapp: String(adminWhatsapp).replace(/[^\d]/g, "") || null }),
       ...(whatsappAlerts !== undefined && { whatsappAlerts: Boolean(whatsappAlerts) }),
+      ...(customerWhatsappAlerts !== undefined && { customerWhatsappAlerts: Boolean(customerWhatsappAlerts) }),
       ...(deliveryFee !== undefined && { deliveryFee: Math.max(0, Number(deliveryFee) || 0) }),
       ...(freeDeliveryAbove !== undefined && { freeDeliveryAbove: Math.max(0, Number(freeDeliveryAbove) || 0) }),
       ...(subscriptionDiscountPct !== undefined && { subscriptionDiscountPct: Math.min(50, Math.max(0, Number(subscriptionDiscountPct) || 0)) }),
@@ -53,7 +54,25 @@ async function updateSettings(req, res) {
   res.json({ settings });
 }
 
-module.exports = { getSettings, updateSettings, serviceCheck };
+// POST /api/settings/test-whatsapp (ADMIN) - sends a test alert to the company WhatsApp number
+// and reports exactly why it failed, so the setup can be checked from the dashboard.
+async function testWhatsapp(req, res) {
+  const { sendWhatsApp, isConfigured } = require("../services/whatsapp.service");
+  const s = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+  const phone = s?.adminWhatsapp || process.env.ADMIN_WHATSAPP;
+  if (!isConfigured()) {
+    return res.json({ sent: false, reason: "WhatsApp isn't connected yet. Add WHATSAPP_TOKEN and WHATSAPP_PHONE_ID on Render (backend)." });
+  }
+  if (!phone) return res.json({ sent: false, reason: "No company WhatsApp number saved. Enter it above and save first." });
+  if (s && s.whatsappAlerts === false) return res.json({ sent: false, reason: "WhatsApp alerts are switched off above." });
+  const r = await sendWhatsApp(phone, `TEST ALERT from Godelicious admin\nNew orders and order updates will arrive on this number.`);
+  if (!r.sent && /24|re-engage|outside|window|131047/i.test(r.reason || "")) {
+    r.reason += " - Tip: set WHATSAPP_TEMPLATE_NAME on Render to an approved template, or send any message from this number to your business WhatsApp first.";
+  }
+  res.json({ ...r, to: phone, usingTemplate: Boolean(process.env.WHATSAPP_TEMPLATE_NAME) });
+}
+
+module.exports = { getSettings, updateSettings, serviceCheck, testWhatsapp };
 
 // POST /api/settings/service-check  { latitude, longitude }  (public) - can we deliver here?
 async function serviceCheck(req, res) {

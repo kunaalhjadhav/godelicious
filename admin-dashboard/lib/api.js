@@ -156,6 +156,7 @@ export const api = {
 
   getSettings: () => request("/api/settings"),
   updateSettings: (payload) => request("/api/settings", { method: "PATCH", body: payload }),
+  testWhatsapp: () => request("/api/settings/test-whatsapp", { method: "POST" }),
 
   // Reviews
   listReviews: () => request("/api/reviews"),

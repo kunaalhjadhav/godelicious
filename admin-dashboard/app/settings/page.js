@@ -10,6 +10,18 @@ export default function SettingsPage() {
   const [staffPricePerPerson, setStaffPricePerPerson] = useState("");
   const [adminWhatsapp, setAdminWhatsapp] = useState("");
   const [whatsappAlerts, setWhatsappAlerts] = useState(true);
+  const [customerWhatsappAlerts, setCustomerWhatsappAlerts] = useState(true);
+  const [waTest, setWaTest] = useState(null); // { ok, text }
+  const [waTesting, setWaTesting] = useState(false);
+  async function sendTestWhatsapp() {
+    setWaTesting(true); setWaTest(null);
+    try {
+      const r = await api.testWhatsapp();
+      setWaTest(r.sent ? { ok: true, text: `Test message sent to ${r.to}. Check WhatsApp on that phone.` } : { ok: false, text: r.reason || "Not sent." });
+    } catch (e) {
+      setWaTest({ ok: false, text: e.message });
+    } finally { setWaTesting(false); }
+  }
   const [deliveryFee, setDeliveryFee] = useState("0");
   const [freeDeliveryAbove, setFreeDeliveryAbove] = useState("0");
   const [subscriptionDiscountPct, setSubscriptionDiscountPct] = useState("8");
@@ -32,6 +44,7 @@ export default function SettingsPage() {
       setStaffPricePerPerson(String(d.settings.staffPricePerPerson ?? 0));
       setAdminWhatsapp(d.settings.adminWhatsapp || "");
       setWhatsappAlerts(d.settings.whatsappAlerts !== false);
+      setCustomerWhatsappAlerts(d.settings.customerWhatsappAlerts !== false);
       setDeliveryFee(String(d.settings.deliveryFee ?? 0));
       setFreeDeliveryAbove(String(d.settings.freeDeliveryAbove ?? 0));
       setSubscriptionDiscountPct(String(d.settings.subscriptionDiscountPct ?? 8));
@@ -52,7 +65,7 @@ export default function SettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson), adminWhatsapp, whatsappAlerts,
+      await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson), adminWhatsapp, whatsappAlerts, customerWhatsappAlerts,
         deliveryFee: Number(deliveryFee), freeDeliveryAbove: Number(freeDeliveryAbove),
         subscriptionDiscountPct: Number(subscriptionDiscountPct), referralBonusPoints: Number(referralBonusPoints),
         gstPercent: Number(gstPercent), couponMinOrder: Number(couponMinOrder), mealBoxMinQty: Number(mealBoxMinQty),
@@ -188,13 +201,32 @@ export default function SettingsPage() {
           className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
         />
         <p className="text-xs text-ink/40 mb-3">
-          With country code, digits only (91 + 10-digit number). Every new order is sent here on WhatsApp.
-          Needs the WhatsApp Business API variables set on the backend — see the setup guide.
+          With country code, digits only (91 + 10-digit number). New orders, payments, COD advances,
+          status changes and cancellations are sent here on WhatsApp. Needs the WhatsApp Business API
+          variables set on the backend — see the setup guide.
         </p>
-        <label className="flex items-center gap-2 text-sm mb-5">
+        <label className="flex items-center gap-2 text-sm mb-3">
           <input type="checkbox" checked={whatsappAlerts} onChange={(e) => setWhatsappAlerts(e.target.checked)} />
-          Send WhatsApp alerts
+          Send WhatsApp alerts to this company number
         </label>
+        <label className="flex items-center gap-2 text-sm mb-1">
+          <input type="checkbox" checked={customerWhatsappAlerts} onChange={(e) => setCustomerWhatsappAlerts(e.target.checked)} />
+          Send customers their order messages on WhatsApp
+        </label>
+        <p className="text-xs text-ink/40 mb-3">
+          Order received, payment received, confirmed, preparing, out for delivery, delivered and cancelled,
+          sent to the phone number on each order.
+        </p>
+        <div className="mb-5">
+          <button type="button" onClick={sendTestWhatsapp} disabled={waTesting}
+            className="text-sm px-3 py-1.5 border border-line rounded-sm hover:bg-paper disabled:opacity-50">
+            {waTesting ? "Sending…" : "Send test WhatsApp"}
+          </button>
+          <span className="text-xs text-ink/40 ml-2">Save the number first.</span>
+          {waTest && (
+            <p className={`text-xs mt-2 px-2 py-1.5 border-l-2 ${waTest.ok ? "text-basil border-basil bg-basil/10" : "text-chili border-chili bg-chili/10"}`}>{waTest.text}</p>
+          )}
+        </div>
 
         <button
           type="submit" disabled={saving}

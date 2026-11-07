@@ -71,4 +71,39 @@ async function sendWhatsApp(phone, text) {
   }
 }
 
-module.exports = { sendWhatsApp, isConfigured, normalizePhone };
+// Sends an approved template with several body variables ({{1}}, {{2}}, ...).
+async function sendWhatsAppTemplate(phone, template, params, lang) {
+  if (!isConfigured()) return { sent: false, reason: "WhatsApp API not configured" };
+  const to = normalizePhone(phone);
+  if (!to) return { sent: false, reason: "no phone number" };
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: template,
+      language: { code: lang || process.env.WHATSAPP_TEMPLATE_LANG || "en" },
+      // Meta rejects empty or multi-line variables, so every value is flattened and never blank.
+      components: [{ type: "body", parameters: params.map((v) => ({ type: "text", text: flatten(v || "-").slice(0, 300) })) }],
+    },
+  };
+  try {
+    const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data?.error?.message || `HTTP ${res.status}`;
+      console.error(`[whatsapp] template ${template} to ${to} failed: ${msg}`);
+      return { sent: false, reason: msg };
+    }
+    return { sent: true, id: data?.messages?.[0]?.id };
+  } catch (err) {
+    console.error("[whatsapp] template send error:", err.message);
+    return { sent: false, reason: err.message };
+  }
+}
+
+module.exports = { sendWhatsApp, sendWhatsAppTemplate, isConfigured, normalizePhone };

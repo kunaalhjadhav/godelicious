@@ -2,7 +2,7 @@ const { codRule } = require("../utils/codRules");
 const prisma = require("../config/db");
 const { checkServiceArea } = require("../utils/serviceArea");
 const { sendPushToUser } = require("../services/push.service");
-const { notifyNewOrder } = require("../services/notify.service");
+const { notifyNewOrder, notifyOrderUpdate } = require("../services/notify.service");
 const { POINTS_PER_RUPEE, awardForDelivered, refundPointsForCancelled } = require("../services/loyalty.service");
 const { computeTotals, couponMinimum } = require("../utils/pricing");
 
@@ -391,10 +391,12 @@ async function updateOrderStatus(req, res) {
     return res.status(400).json({ error: `status must be one of ${VALID_STATUSES.join(", ")}` });
   }
 
+  let existingStatus = null;
   try {
     const order = await prisma.$transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { id: req.params.id }, include: { items: true } });
       if (!existing) throw new Error("Order not found.");
+      existingStatus = existing.status;
 
       // If cancelling an order that hadn't already been cancelled, restock items
       if (status === "CANCELLED" && existing.status !== "CANCELLED") {
@@ -432,6 +434,8 @@ async function updateOrderStatus(req, res) {
       awardForDelivered(order.id).catch((err) => console.error("Loyalty award failed:", err.message));
     }
 
+    if (status !== existingStatus) notifyOrderUpdate(order.id, status);
+
     sendPushToUser(order.userId, {
       title: "Order update",
       body: `Your order is now ${status.replace(/_/g, " ").toLowerCase()}.`,
@@ -460,6 +464,7 @@ async function confirmCod(req, res) {
     where: { id: req.params.id },
     data: { paymentStatus: "PAID", codConfirmedAt: new Date(), codConfirmedBy: req.user.id },
   });
+  notifyOrderUpdate(updated.id, updated.status, "Cash payment collected - order fully paid");
   res.json({ order: updated });
 }
 

@@ -538,6 +538,7 @@ model AppSettings {
   staffPricePerPerson  Float @default(0) // charged per staff member requested on a booking
   adminWhatsapp   String?  // number that receives new-order WhatsApp alerts (with country code, e.g. 919916989185)
   whatsappAlerts  Boolean  @default(true)
+  customerWhatsappAlerts Boolean @default(true) // order messages to customers on WhatsApp
   deliveryFee     Float    @default(0)   // 0 = delivery is always free
   freeDeliveryAbove Float  @default(0)   // fee waived when the order is at least this much (0 = no threshold)
   subscriptionDiscountPct Float @default(8) // weekly meal box saving

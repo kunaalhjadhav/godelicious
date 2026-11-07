@@ -6,5 +6,6 @@ const { requireAuth, requireRole, optionalAuth } = require("../middleware/auth")
 router.get("/", optionalAuth, settings.getSettings);
 router.post("/service-check", settings.serviceCheck);
 router.patch("/", requireAuth, requireRole("ADMIN"), settings.updateSettings);
+router.post("/test-whatsapp", requireAuth, requireRole("ADMIN"), settings.testWhatsapp);
 
 module.exports = router;
