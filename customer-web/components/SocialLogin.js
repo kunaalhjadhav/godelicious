@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { api2 } from "@/lib/api2";
+import { setToken } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { firebaseReady, googleIdToken, appleIdToken } from "@/lib/firebaseAuth";
 
@@ -12,6 +13,15 @@ export default function SocialLogin() {
   const pathname = usePathname() || "";
   const router = useRouter();
   const { acceptLogin } = useAuth();
+
+  // Signs the person in with the server's reply. Falls back to a full page load if the
+  // sign-in helper isn't available, so an older file can never break this step.
+  function finishLogin(data) {
+    if (typeof acceptLogin === "function") { acceptLogin(data); return true; }
+    setToken(data.token);
+    window.location.href = "/";
+    return false;
+  }
   const [on, setOn] = useState(false);
   const [appleOn, setAppleOn] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,8 +39,7 @@ export default function SocialLogin() {
     setError(""); setBusy(true);
     try {
       const idToken = kind === "apple" ? await appleIdToken() : await googleIdToken();
-      acceptLogin(await api2.firebaseLogin(idToken));
-      router.push("/");
+      if (finishLogin(await api2.firebaseLogin(idToken))) router.push("/");
     } catch (err) {
       if (!/popup-closed|cancelled/i.test(err.message || "")) setError(err.message || "Sign-in failed.");
     } finally { setBusy(false); }

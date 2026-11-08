@@ -4,12 +4,22 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
 import { api2 } from "@/lib/api2";
+import { setToken } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { firebaseReady, googleIdToken, appleIdToken } from "@/lib/firebaseAuth";
 
 // Email and password sign in or sign up, plus Google when Firebase is set up.
 export default function EmailLoginPage() {
   const { login, register, acceptLogin } = useAuth();
+
+  // Signs the person in with the server's reply. Falls back to a full page load if the
+  // sign-in helper isn't available, so an older file can never break this step.
+  function finishLogin(data) {
+    if (typeof acceptLogin === "function") { acceptLogin(data); return true; }
+    setToken(data.token);
+    window.location.href = "/";
+    return false;
+  }
   const router = useRouter();
   const [mode, setMode] = useState("signin"); // signin | signup
   const [name, setName] = useState("");
@@ -40,8 +50,7 @@ export default function EmailLoginPage() {
     setError(""); setBusy(true);
     try {
       const idToken = kind === "apple" ? await appleIdToken() : await googleIdToken();
-      acceptLogin(await api2.firebaseLogin(idToken));
-      router.push("/");
+      if (finishLogin(await api2.firebaseLogin(idToken))) router.push("/");
     } catch (err) {
       if (!/popup-closed|cancelled/i.test(err.message || "")) setError(err.message || "Sign-in failed.");
     } finally { setBusy(false); }

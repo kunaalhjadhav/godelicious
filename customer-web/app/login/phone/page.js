@@ -4,12 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
 import { api2 } from "@/lib/api2";
+import { setToken } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { sendPhoneCode, confirmPhoneCode } from "@/lib/firebaseAuth";
 
 // Phone sign in where Firebase sends the code (no DLT needed).
 export default function FirebasePhoneLoginPage() {
   const { acceptLogin } = useAuth();
+
+  // Signs the person in with the server's reply. Falls back to a full page load if the
+  // sign-in helper isn't available, so an older file can never break this step.
+  function finishLogin(data) {
+    if (typeof acceptLogin === "function") { acceptLogin(data); return true; }
+    setToken(data.token);
+    window.location.href = "/";
+    return false;
+  }
   const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -43,8 +53,7 @@ export default function FirebasePhoneLoginPage() {
     setError(""); setBusy(true);
     try {
       const idToken = await confirmPhoneCode(confirmation, code);
-      acceptLogin(await api2.firebaseLogin(idToken, name));
-      router.push("/");
+      if (finishLogin(await api2.firebaseLogin(idToken, name))) router.push("/");
     } catch (err) {
       setError(/invalid-verification|code/i.test(err.message) ? "That code isn't right. Please check and try again." : err.message);
     } finally { setBusy(false); }
