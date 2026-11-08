@@ -22,6 +22,8 @@ router.delete("/me/blocks/:id", requireAuth, requireRole("VENUE_PARTNER"), v.rem
 // Admin
 router.get("/admin/all", requireAuth, requireRole("ADMIN", "STAFF"), v.adminList);
 router.patch("/admin/:id", requireAuth, requireRole("ADMIN", "STAFF"), v.adminUpdate);
+router.post("/admin", requireAuth, requireRole("ADMIN"), v.adminCreate);
+router.post("/admin/:id/password", requireAuth, requireRole("ADMIN"), v.adminResetPassword);
 
 // Customer
 router.get("/bookings/my", requireAuth, v.myCustomerBookings);

@@ -478,7 +478,44 @@ async function adminUpdate(req, res) {
   }
 }
 
-module.exports = { createAdvanceOrder, verifyAdvance,
+// POST /api/venues/admin (ADMIN) - add a venue and its owner's portal login in one go.
+// The venue is approved straight away because the admin is adding it.
+async function adminCreate(req, res) {
+  try {
+    const { venueName, name, email, password, phone, address, city, capacity } = req.body || {};
+    const mail = String(email || "").trim().toLowerCase();
+    if (!venueName || !name || !mail || !password || !address) {
+      return res.status(400).json({ error: "Venue name, owner name, email, password and address are required." });
+    }
+    if (String(password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+    if (await prisma.user.findFirst({ where: { email: { equals: mail, mode: "insensitive" } } })) {
+      return res.status(409).json({ error: "This email is already used by another account." });
+    }
+    const passwordHash = await bcrypt.hash(String(password), 10);
+    const venue = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({ data: { name, email: mail, phone, passwordHash, role: "VENUE_PARTNER" } });
+      return tx.venue.create({
+        data: { ownerId: user.id, name: venueName, address, city: city || "Mysuru", contactPhone: phone, capacity: capacity ? Number(capacity) : 100, isApproved: true },
+      });
+    });
+    res.status(201).json({ venue: shapeVenue(venue), email: mail });
+  } catch (err) {
+    console.error("venue adminCreate error:", err);
+    res.status(500).json({ error: "Could not add the venue." });
+  }
+}
+
+// POST /api/venues/admin/:id/password (ADMIN) { password } - reset the owner's portal password
+async function adminResetPassword(req, res) {
+  const password = String(req.body?.password || "");
+  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+  const venue = await prisma.venue.findUnique({ where: { id: req.params.id }, include: { owner: { select: { id: true, email: true } } } });
+  if (!venue) return res.status(404).json({ error: "Venue not found." });
+  await prisma.user.update({ where: { id: venue.ownerId }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+  res.json({ ok: true, email: venue.owner?.email });
+}
+
+module.exports = { createAdvanceOrder, verifyAdvance, adminCreate, adminResetPassword,
   register, getMine, updateMine, addTariff, updateTariff, deleteTariff, addBlock, removeBlock,
   myBookings, decideBooking, myDashboard,
   listVenues, getVenue, createBooking, myCustomerBookings, cancelBooking,

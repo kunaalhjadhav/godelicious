@@ -254,6 +254,8 @@ export const api = {
   // Admin: venue partners
   listAllVenues: () => request("/api/venues/admin/all"),
   updateVenueAdmin: (id, payload) => request(`/api/venues/admin/${id}`, { method: "PATCH", body: payload }),
+  createVenueAdmin: (payload) => request("/api/venues/admin", { method: "POST", body: payload }),
+  resetVenuePassword: (id, password) => request(`/api/venues/admin/${id}/password`, { method: "POST", body: { password } }),
 
   // Marketing assistant
   listMarketingDrafts: (status) => request(`/api/marketing/drafts${status ? `?status=${status}` : ""}`),
