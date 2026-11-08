@@ -138,6 +138,7 @@ export const api = {
   listBrands: () => request("/api/brands"),
   createBrand: (payload) => request("/api/brands", { method: "POST", body: payload }),
   updateBrand: (id, payload) => request(`/api/brands/${id}`, { method: "PATCH", body: payload }),
+  setBrandLogin: (id, payload) => request(`/api/brands/${id}/login`, { method: "POST", body: payload }),
   deleteBrand: (id) => request(`/api/brands/${id}`, { method: "DELETE" }),
   brandSales: (id, from, to) => {
     const params = new URLSearchParams();

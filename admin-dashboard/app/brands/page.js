@@ -13,6 +13,18 @@ export default function BrandsPage() {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState("");
 
+  const [lf, setLf] = useState({ brandId: "", name: "", email: "", phone: "", password: "" });
+  const [lMsg, setLMsg] = useState(null);
+  async function saveLogin(e) {
+    e.preventDefault(); setLMsg(null);
+    try {
+      const r = await api.setBrandLogin(lf.brandId, lf);
+      setLMsg({ ok: true, text: r.reset ? `Password reset for ${r.email}.` : `Login created for ${r.email}. Share the email, password and the /partner/login link with the partner.` });
+      setLf({ brandId: "", name: "", email: "", phone: "", password: "" });
+      load();
+    } catch (err) { setLMsg({ ok: false, text: err.message }); }
+  }
+
   function load() {
     api.listBrands().then((d) => setBrands(d.brands)).catch((e) => setError(e.message));
   }
@@ -69,6 +81,9 @@ export default function BrandsPage() {
                   <p className="text-xs text-ink/50">
                     Commission {b.commissionPercent}% · {b.contactEmail || "no contact"}
                   </p>
+                  <p className={`text-xs mt-0.5 ${b.logins?.length ? "text-basil" : "text-chili"}`}>
+                    {b.logins?.length ? `Portal login: ${b.logins.map((u) => u.email).join(", ")}` : "No portal login yet - create one on the right"}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {!b.isApproved && (
@@ -92,6 +107,7 @@ export default function BrandsPage() {
           {brands.length === 0 && <p className="text-sm text-ink/40">No brand partners yet.</p>}
         </div>
 
+<div className="space-y-6">
         <form onSubmit={handleSubmit} className="bg-white border border-line rounded-sm p-5 h-fit">
           <h2 className="font-display text-lg mb-3">New brand partner</h2>
           <input
@@ -119,6 +135,23 @@ export default function BrandsPage() {
             Add brand partner
           </button>
         </form>
+
+        <form onSubmit={saveLogin} className="bg-white border border-line rounded-sm p-5 h-fit">
+          <h2 className="font-display text-lg mb-1">Partner portal login</h2>
+          <p className="text-xs text-ink/50 mb-3">Create a login for a brand, or enter the same email again to reset its password.</p>
+          <select required value={lf.brandId} onChange={(e) => setLf({ ...lf, brandId: e.target.value })}
+            className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm">
+            <option value="">Choose brand…</option>
+            {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <input placeholder="Contact name" value={lf.name} onChange={(e) => setLf({ ...lf, name: e.target.value })} className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm" />
+          <input placeholder="Login email" type="email" required value={lf.email} onChange={(e) => setLf({ ...lf, email: e.target.value })} className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm" />
+          <input placeholder="Phone (optional)" value={lf.phone} onChange={(e) => setLf({ ...lf, phone: e.target.value })} className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm" />
+          <input placeholder="Password (min 6 characters)" type="text" required minLength={6} value={lf.password} onChange={(e) => setLf({ ...lf, password: e.target.value })} className="w-full mb-3 px-3 py-2 border border-line rounded-sm text-sm" />
+          <button type="submit" className="w-full bg-charcoal text-paper text-sm px-4 py-2 rounded-sm">Save login</button>
+          {lMsg && <p className={`text-xs mt-2 ${lMsg.ok ? "text-basil" : "text-chili"}`}>{lMsg.text}</p>}
+        </form>
+        </div>
       </div>
     </Shell>
   );

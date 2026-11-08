@@ -2,8 +2,42 @@ const prisma = require("../config/db");
 
 // GET /api/brands (ADMIN)
 async function listBrands(req, res) {
-  const brands = await prisma.brand.findMany({ orderBy: { createdAt: "desc" } });
-  res.json({ brands });
+  const brands = await prisma.brand.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { users: { where: { role: "BRAND_PARTNER" }, select: { id: true, name: true, email: true } } },
+  });
+  res.json({ brands: brands.map(({ users, ...b }) => ({ ...b, logins: users || [] })) });
+}
+
+// POST /api/brands/:id/login (ADMIN) { name, email, password, phone }
+// Creates a partner-portal login for a brand the admin added, or resets the password of that
+// brand's existing login with the same email.
+async function setBrandLogin(req, res) {
+  try {
+    const bcrypt = require("bcryptjs");
+    const brand = await prisma.brand.findUnique({ where: { id: req.params.id } });
+    if (!brand) return res.status(404).json({ error: "Brand not found." });
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const name = String(req.body.name || "").trim() || brand.name;
+    const phone = req.body.phone ? String(req.body.phone).trim() : undefined;
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Enter a valid email." });
+    if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+    const passwordHash = await bcrypt.hash(password, 10);
+    const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
+    if (existing) {
+      if (existing.role === "BRAND_PARTNER" && existing.brandId === brand.id) {
+        await prisma.user.update({ where: { id: existing.id }, data: { passwordHash, ...(phone && { phone }) } });
+        return res.json({ ok: true, reset: true, email });
+      }
+      return res.status(409).json({ error: "This email is already used by another account. Use a different email." });
+    }
+    await prisma.user.create({ data: { name, email, phone, passwordHash, role: "BRAND_PARTNER", brandId: brand.id } });
+    res.status(201).json({ ok: true, created: true, email });
+  } catch (err) {
+    console.error("setBrandLogin error:", err);
+    res.status(500).json({ error: "Could not save the login." });
+  }
 }
 
 // GET /api/brands/public (public) - active brands, for filtering the customer menu by brand
@@ -152,6 +186,7 @@ async function markSettlementPaid(req, res) {
 }
 
 module.exports = {
+  setBrandLogin,
   listBrands, listActiveBrands, createBrand, updateBrand, deleteBrand,
   brandSales, createSettlement, listSettlements, markSettlementPaid,
 };

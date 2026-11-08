@@ -9,6 +9,7 @@ router.use(requireAuth, requireRole("ADMIN"));
 router.get("/", brands.listBrands);
 router.post("/", brands.createBrand);
 router.patch("/:id", brands.updateBrand);
+router.post("/:id/login", brands.setBrandLogin);
 router.delete("/:id", brands.deleteBrand);
 router.get("/:id/sales", brands.brandSales);
 router.post("/:id/settlements", brands.createSettlement);
