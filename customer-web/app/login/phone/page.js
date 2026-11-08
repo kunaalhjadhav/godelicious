@@ -24,7 +24,17 @@ export default function FirebasePhoneLoginPage() {
     try {
       setConfirmation(await sendPhoneCode(phone, "recaptcha-box"));
     } catch (err) {
-      setError(/invalid-phone/i.test(err.message) ? "Please enter a valid 10 digit mobile number." : "Couldn't send the code. Please try again, or use another sign-in method.");
+      const code = err?.code || "";
+      const known = {
+        "auth/invalid-phone-number": "Please enter a valid 10 digit mobile number.",
+        "auth/operation-not-allowed": "Phone sign-in is not switched on yet. Please use SMS code, WhatsApp or email for now.",
+        "auth/billing-not-enabled": "Phone sign-in needs the Firebase pay-as-you-go plan. Please use another sign-in method for now.",
+        "auth/quota-exceeded": "Too many codes were sent today. Please try again tomorrow or use another sign-in method.",
+        "auth/too-many-requests": "Too many attempts. Please wait a few minutes and try again.",
+        "auth/unauthorized-domain": "This website isn't allowed to send codes yet. Please use another sign-in method.",
+        "auth/captcha-check-failed": "The security check failed. Please reload the page and try again.",
+      };
+      setError(`${known[code] || "Couldn't send the code. Please try again, or use another sign-in method."}${code ? ` (${code})` : ""}`);
     } finally { setBusy(false); }
   }
 
