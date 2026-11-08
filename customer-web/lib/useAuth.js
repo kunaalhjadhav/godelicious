@@ -48,6 +48,12 @@ export function AuthProvider({ children }) {
     setUser(data.user);
   }
 
+  // Used by the WhatsApp login: the server already checked the code and returned { token, user }
+  function acceptLogin(data) {
+    setToken(data.token);
+    setUser(data.user);
+  }
+
   function logout() {
     clearToken();
     setUser(null);
@@ -55,7 +61,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithOtp, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithOtp, acceptLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );
