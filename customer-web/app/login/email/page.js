@@ -17,12 +17,13 @@ export default function EmailLoginPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [googleOn, setGoogleOn] = useState(false);
+  const [appleOn, setAppleOn] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!firebaseReady()) return;
-    api2.firebaseStatus().then((d) => setGoogleOn(Boolean(d.enabled))).catch(() => {});
+    api2.firebaseStatus().then((d) => { setGoogleOn(Boolean(d.google ?? d.enabled)); setAppleOn(Boolean(d.apple)); }).catch(() => {});
   }, []);
 
   async function submit(e) {
@@ -82,7 +83,7 @@ export default function EmailLoginPage() {
         {googleOn && (
           <div className="mt-4 grid gap-2">
             <button type="button" onClick={() => social("google")} disabled={busy} className="w-full bg-white border border-line rounded-sm py-2.5 text-sm font-medium text-ink">Continue with Google</button>
-            <button type="button" onClick={() => social("apple")} disabled={busy} className="w-full bg-black text-white rounded-sm py-2.5 text-sm font-medium">Continue with Apple</button>
+            {appleOn && <button type="button" onClick={() => social("apple")} disabled={busy} className="w-full bg-black text-white rounded-sm py-2.5 text-sm font-medium">Continue with Apple</button>}
           </div>
         )}
       </div>

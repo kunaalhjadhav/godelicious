@@ -36,8 +36,12 @@ async function verifyFirebaseToken(idToken) {
 const last10 = (v) => String(v || "").replace(/\D/g, "").slice(-10);
 
 // GET /api/auth/firebase/status
+// google: on when FIREBASE_PROJECT_ID is set. apple: also needs FIREBASE_APPLE_ENABLED=1, set only
+// after Sign in with Apple is configured in Firebase (Apple Services ID and key).
 function status(req, res) {
-  res.json({ enabled: Boolean(process.env.FIREBASE_PROJECT_ID) });
+  const enabled = Boolean(process.env.FIREBASE_PROJECT_ID);
+  const apple = enabled && process.env.FIREBASE_APPLE_ENABLED === "1";
+  res.json({ enabled, google: enabled, apple });
 }
 
 // POST /api/auth/firebase { idToken, name? }

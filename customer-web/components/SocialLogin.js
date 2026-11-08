@@ -13,12 +13,13 @@ export default function SocialLogin() {
   const router = useRouter();
   const { acceptLogin } = useAuth();
   const [on, setOn] = useState(false);
+  const [appleOn, setAppleOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!firebaseReady()) return;
-    api2.firebaseStatus().then((d) => setOn(Boolean(d.enabled))).catch(() => {});
+    api2.firebaseStatus().then((d) => { setOn(Boolean(d.google ?? d.enabled)); setAppleOn(Boolean(d.apple)); }).catch(() => {});
   }, []);
 
   // The email page and the app hand-off page show their own buttons.
@@ -47,12 +48,14 @@ export default function SocialLogin() {
         </svg>
         Continue with Google
       </button>
+      {appleOn && (
       <button type="button" className="social-btn social-apple" onClick={() => go("apple")} disabled={busy}>
         <svg width="16" height="18" viewBox="0 0 814 1000" aria-hidden="true">
           <path fill="#fff" d="M788 341c-6 4-108 62-108 190 0 148 130 200 134 202-1 3-21 72-69 142-43 62-88 124-156 124s-86-40-165-40c-77 0-104 41-166 41s-106-57-156-127C45 791 0 666 0 548 0 358 124 257 246 257c65 0 119 43 160 43 39 0 100-45 174-45 28 0 129 3 196 86zM558 158c31-36 52-87 52-137 0-7-1-14-2-20-50 2-109 33-145 75-28 32-54 83-54 134 0 8 1 15 2 18 3 1 9 2 14 2 45 0 101-30 133-72z"/>
         </svg>
         Continue with Apple
       </button>
+      )}
       {error && <p className="social-error">{error}</p>}
     </div>
   );
