@@ -37,6 +37,10 @@ export default function OrderDetailPage() {
   }
 
   useEffect(load, [id]);
+  useEffect(() => {
+    const t = setInterval(() => document.visibilityState === "visible" && load(), 20000);
+    return () => clearInterval(t);
+  }, [id]);
 
   async function submitReview(e) {
     e.preventDefault();
@@ -122,6 +126,26 @@ export default function OrderDetailPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {order.deliveryPartner && order.trackToken && !isCancelled && !isDelivered && (
+          <div className="bg-white border border-basil/30 rounded-sm p-5 mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg">Delivery</h2>
+                <p className="text-sm text-ink/60">{order.deliveryPartner.name} is delivering your order.</p>
+              </div>
+              <a href={`/track/${order.trackToken}`} className="px-4 py-2 rounded-sm bg-basil text-white text-sm font-medium whitespace-nowrap">
+                Track live
+              </a>
+            </div>
+            {order.deliveryOtp && (
+              <p className="mt-3 text-sm">
+                Delivery code: <span className="font-mono text-lg font-bold tracking-widest">{order.deliveryOtp}</span>
+                <span className="block text-xs text-ink/50">Give it to the rider only after you receive your food.</span>
+              </p>
+            )}
           </div>
         )}
 

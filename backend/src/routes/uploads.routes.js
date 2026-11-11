@@ -52,7 +52,7 @@ router.get("/file/:id", async (req, res) => {
 router.post(
   "/",
   requireAuth,
-  requireRole("ADMIN", "BRAND_PARTNER", "VENUE_PARTNER"),
+  requireRole("ADMIN", "BRAND_PARTNER", "VENUE_PARTNER", "DELIVERY_PARTNER"),
   upload.single("image"),
   async (req, res) => {
     if (!req.file) {

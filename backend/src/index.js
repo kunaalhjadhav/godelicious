@@ -141,6 +141,8 @@ app.use("/api/brand-partners", brandPartnersRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/devices", devicesRoutes);
 app.use("/api/delivery-partners", deliveryPartnersRoutes);
+app.use("/api/rider", require("./routes/rider.routes"));
+app.use("/api/track", require("./routes/track.routes"));
 app.use("/api/home", homeRoutes);
 app.use("/api/favorites", favoritesRoutes);
 app.use("/api/addresses", addressesRoutes);

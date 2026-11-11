@@ -27,6 +27,7 @@ export default function PartnerShell({ children }) {
   useEffect(() => {
     if (!loading && !user) router.replace("/partner/login");
     else if (!loading && user && user.role === "VENUE_PARTNER") router.replace("/venue/dashboard");
+    else if (!loading && user && user.role === "DELIVERY_PARTNER") router.replace("/rider");
     else if (!loading && user && user.role !== "BRAND_PARTNER") router.replace("/dashboard");
   }, [loading, user, router]);
 

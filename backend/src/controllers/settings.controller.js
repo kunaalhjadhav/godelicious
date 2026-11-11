@@ -21,7 +21,7 @@ async function updateSettings(req, res) {
   const {
     minOrderAmount, codEnabled, staffPricePerPerson, adminWhatsapp, whatsappAlerts, customerWhatsappAlerts,
     deliveryFee, freeDeliveryAbove, subscriptionDiscountPct, referralBonusPoints,
-    gstPercent, couponMinOrder, mealBoxMinQty, serviceAreaOn, serviceLat, serviceLng, serviceRadiusKm,
+    gstPercent, couponMinOrder, mealBoxMinQty, riderPayPerOrder, serviceAreaOn, serviceLat, serviceLng, serviceRadiusKm,
   } = req.body;
   const settings = await prisma.appSettings.upsert({
     where: { id: "singleton" },
@@ -38,6 +38,7 @@ async function updateSettings(req, res) {
       ...(referralBonusPoints !== undefined && { referralBonusPoints: Math.max(0, Math.floor(Number(referralBonusPoints) || 0)) }),
       ...(gstPercent !== undefined && { gstPercent: Math.min(28, Math.max(0, Number(gstPercent) || 0)) }),
       ...(couponMinOrder !== undefined && { couponMinOrder: Math.max(0, Number(couponMinOrder) || 0) }),
+      ...(riderPayPerOrder !== undefined && { riderPayPerOrder: Math.max(0, Number(riderPayPerOrder) || 0) }),
       ...(mealBoxMinQty !== undefined && { mealBoxMinQty: Math.max(1, Math.floor(Number(mealBoxMinQty) || 1)) }),
       ...(serviceAreaOn !== undefined && { serviceAreaOn: Boolean(serviceAreaOn) }),
       ...(Number.isFinite(Number(serviceLat)) && serviceLat !== undefined && serviceLat !== "" && { serviceLat: Number(serviceLat) }),

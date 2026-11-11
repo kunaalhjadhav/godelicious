@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [gstPercent, setGstPercent] = useState("5");
   const [couponMinOrder, setCouponMinOrder] = useState("1000");
   const [mealBoxMinQty, setMealBoxMinQty] = useState("10");
+  const [riderPayPerOrder, setRiderPayPerOrder] = useState("40");
   const [serviceAreaOn, setServiceAreaOn] = useState(true);
   const [serviceLat, setServiceLat] = useState("12.322983");
   const [serviceLng, setServiceLng] = useState("76.5878328");
@@ -52,6 +53,7 @@ export default function SettingsPage() {
       setGstPercent(String(d.settings.gstPercent ?? 5));
       setCouponMinOrder(String(d.settings.couponMinOrder ?? 1000));
       setMealBoxMinQty(String(d.settings.mealBoxMinQty ?? 10));
+      setRiderPayPerOrder(String(d.settings.riderPayPerOrder ?? 40));
       setServiceAreaOn(d.settings.serviceAreaOn ?? true);
       setServiceLat(String(d.settings.serviceLat ?? 12.322983));
       setServiceLng(String(d.settings.serviceLng ?? 76.5878328));
@@ -68,7 +70,7 @@ export default function SettingsPage() {
       await api.updateSettings({ minOrderAmount: Number(minOrderAmount), codEnabled, staffPricePerPerson: Number(staffPricePerPerson), adminWhatsapp, whatsappAlerts, customerWhatsappAlerts,
         deliveryFee: Number(deliveryFee), freeDeliveryAbove: Number(freeDeliveryAbove),
         subscriptionDiscountPct: Number(subscriptionDiscountPct), referralBonusPoints: Number(referralBonusPoints),
-        gstPercent: Number(gstPercent), couponMinOrder: Number(couponMinOrder), mealBoxMinQty: Number(mealBoxMinQty),
+        gstPercent: Number(gstPercent), couponMinOrder: Number(couponMinOrder), mealBoxMinQty: Number(mealBoxMinQty), riderPayPerOrder: Number(riderPayPerOrder),
         serviceAreaOn, serviceLat: Number(serviceLat), serviceLng: Number(serviceLng), serviceRadiusKm: Number(serviceRadiusKm),
       });
       setSaved(true);
@@ -125,6 +127,13 @@ export default function SettingsPage() {
         <p className="text-xs text-ink/40 mb-5">
           Counted across all meal boxes in the cart, so a customer can mix boxes (for example 6 + 4 = 10).
         </p>
+
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Delivery partner pay per delivered order (₹)</label>
+        <input
+          type="number" min="0" value={riderPayPerOrder} onChange={(e) => setRiderPayPerOrder(e.target.value)}
+          className="w-full mb-2 px-3 py-2 border border-line rounded-sm text-sm"
+        />
+        <p className="text-xs text-ink/40 mb-5">Shown to riders as their earnings in the rider app.</p>
 
         <label className="flex items-center gap-2 text-sm mb-1">
           <input type="checkbox" checked={serviceAreaOn} onChange={(e) => setServiceAreaOn(e.target.checked)} />

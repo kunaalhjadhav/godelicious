@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ClipboardList, Boxes, Utensils, PlusSquare, Warehouse, CalendarHeart,
   Tag, Tags, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
-  SlidersHorizontal, LogOut, Truck, ShieldCheck, Building2, Repeat, PackageOpen, Sparkles,
+  SlidersHorizontal, LogOut, Truck, MapPin, ShieldCheck, Building2, Repeat, PackageOpen, Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
@@ -31,6 +31,7 @@ const NAV_GROUPS = [
       { href: "/venue-enquiries", label: "Venue Enquiries", icon: CalendarHeart },
       { href: "/subscriptions", label: "Weekly Meal Boxes", icon: Repeat },
       { href: "/delivery-partners", label: "Delivery Partners", icon: Truck },
+      { href: "/live-map", label: "Live Rider Map", icon: MapPin },
     ],
   },
   {
@@ -87,9 +88,10 @@ export default function Shell({ children }) {
     if (!loading && !user) router.replace("/login");
     else if (!loading && user && user.role === "BRAND_PARTNER") router.replace("/partner/dashboard");
     else if (!loading && user && user.role === "VENUE_PARTNER") router.replace("/venue/dashboard");
+    else if (!loading && user && user.role === "DELIVERY_PARTNER") router.replace("/rider");
   }, [loading, user, router]);
 
-  if (loading || !user || ["BRAND_PARTNER", "VENUE_PARTNER"].includes(user.role)) {
+  if (loading || !user || ["BRAND_PARTNER", "VENUE_PARTNER", "DELIVERY_PARTNER"].includes(user.role)) {
     return <div className="min-h-screen flex items-center justify-center bg-paper text-ink/50">Loading…</div>;
   }
 

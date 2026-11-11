@@ -7,6 +7,8 @@ const { sendWhatsApp, sendWhatsAppTemplate } = require("./whatsapp.service");
 
 const rupees = (n) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 const shortId = (id) => String(id).slice(0, 8).toUpperCase();
+const SITE_URL = (process.env.SITE_URL || "https://godelicious.in").replace(/\/$/, "");
+const riderAppLink = () => (process.env.ADMIN_SITE_URL ? `${process.env.ADMIN_SITE_URL.replace(/\/$/, "")}/rider` : "the Godelicious rider app");
 
 async function pushMany(userIds, payload) {
   await Promise.allSettled(userIds.map((id) => sendPushToUser(id, payload)));
@@ -86,7 +88,8 @@ async function notifyNewOrder(orderId) {
       `${itemsText(order.items)}\n` +
       `Total ${rupees(order.totalAmount)} - ${pay}\n` +
       `Deliver: ${when}\n` +
-      `Address: ${order.deliveryAddress}${mapLink}`;
+      `Address: ${order.deliveryAddress}${mapLink}\n\n` +
+      `Reply to manage it:\nACCEPT ${shortId(order.id)}\nREJECT ${shortId(order.id)} reason\nASSIGN ${shortId(order.id)} rider name`;
 
     // Admin / staff
     const ids = await staffUserIds();
@@ -182,7 +185,7 @@ async function notifyOrderUpdate(orderId, status, note) {
       : {
           CONFIRMED: "Our kitchen has it scheduled for your delivery time.",
           PREPARING: "Our kitchen is preparing your food now.",
-          OUT_FOR_DELIVERY: `It will reach you soon.${due > 0 ? ` Please keep ${rupees(due)} ready in cash.` : ""}`,
+          OUT_FOR_DELIVERY: `It will reach you soon.${due > 0 ? ` Please keep ${rupees(due)} ready in cash.` : ""}${order.trackToken ? ` Track live: ${SITE_URL}/track/${order.trackToken}` : ""}`,
           DELIVERED: "Enjoy your meal! You can rate it in the Godelicious app.",
           CANCELLED: "If you paid online, the refund follows our Cancellation & Refund Policy. Questions? Reply in the app chat.",
         }[status] || "";
@@ -292,7 +295,9 @@ async function notifyVenueRequest(bookingId) {
       data: { type: "venue_request", bookingId: b.id, url: "/venue/calendar" },
     });
     const phone = b.venue.contactPhone || b.venue.owner.phone;
-    if (phone) await sendWhatsApp(phone, text);
+    if (phone) await sendWhatsApp(phone, `${text}\nAccept or reject in the venue portal > Calendar & Requests.`);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, text);
     await pushMany(await staffUserIds(), { title: "New venue request", body: `${b.venue.name} - ${b.eventType} on ${d}`, data: { type: "venue_request", url: "/venues" } });
   } catch (err) {
     console.error("notifyVenueRequest failed:", err.message);
@@ -309,21 +314,142 @@ async function notifyVenueDecision(bookingId) {
       ? `${b.venue.name} accepted your ${b.eventType} on ${d}.${b.quotedAmount ? ` Quote: ${rupees(b.quotedAmount)}.` : ""}`
       : `${b.venue.name} could not take your ${b.eventType} on ${d}.${b.ownerNote ? ` ${b.ownerNote}` : ""}`;
     await sendPushToUser(b.customerId, { title: accepted ? "Venue request accepted" : "Venue request declined", body, data: { type: "venue_decision", bookingId: b.id } });
-    await sendWhatsApp(b.contactPhone, body);
+    await sendWhatsApp(b.contactPhone, accepted ? `Godelicious: ${body} Pay the advance in the app (Profile > My venue requests) to confirm your booking.` : `Godelicious: ${body}`);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `VENUE ${accepted ? "ACCEPTED" : "DECLINED"}\n${b.venue.name} - ${b.eventType} on ${d}${b.quotedAmount && accepted ? `\nQuote ${rupees(b.quotedAmount)}` : ""}\nCustomer: ${b.contactPhone}`);
   } catch (err) {
     console.error("notifyVenueDecision failed:", err.message);
   }
 }
 
-async function notifyNewVenuePartner(venueName) {
+async function notifyNewVenuePartner(venueName, ownerName, phone) {
   try {
     await pushMany(await staffUserIds(), { title: "New venue partner", body: `${venueName} registered and awaits approval`, data: { type: "approval", url: "/venues" } });
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `NEW VENUE PARTNER\n${venueName}${ownerName ? `\n${ownerName}` : ""}${phone ? ` - ${phone}` : ""}\nApprove in Admin > Venue Partners.`);
   } catch (err) {
     console.error("notifyNewVenuePartner failed:", err.message);
   }
 }
 
+// Venue approved by admin -> owner
+async function notifyVenueApproved(venueId) {
+  try {
+    const v = await prisma.venue.findUnique({ where: { id: venueId }, include: { owner: true } });
+    if (!v) return;
+    await sendPushToUser(v.ownerId, { title: "Your venue is live", body: `${v.name} is approved and now shows to customers.`, data: { type: "venue_approved", url: "/venue/dashboard" } });
+    const phone = v.contactPhone || v.owner?.phone;
+    if (phone) await sendWhatsApp(phone, `Godelicious: ${v.name} is approved and now visible to customers. Keep your calendar and tariffs up to date in the venue portal.`);
+  } catch (err) { console.error("notifyVenueApproved failed:", err.message); }
+}
+
+// Customer paid the venue advance -> owner, company number, customer
+async function notifyVenueAdvancePaid(bookingId) {
+  try {
+    const b = await prisma.venueBooking.findUnique({ where: { id: bookingId }, include: { venue: { include: { owner: true } }, customer: { select: { name: true } } } });
+    if (!b) return;
+    const d = new Date(b.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    const bal = Math.max(0, (b.quotedAmount || 0) - (b.advanceAmount || 0));
+    const ownerText = `BOOKING CONFIRMED - ADVANCE PAID\n${b.venue.name}: ${b.eventType} on ${d}, ${b.guestCount} guests\n${b.customer?.name || "Customer"} - ${b.contactPhone}\nAdvance ${rupees(b.advanceAmount)} paid online. Balance ${rupees(bal)} to settle with the customer.`;
+    await sendPushToUser(b.venue.ownerId, { title: "Booking confirmed", body: `${b.eventType} on ${d}: advance ${rupees(b.advanceAmount)} paid`, data: { type: "venue_advance", bookingId: b.id, url: "/venue/bookings" } });
+    const ownerPhone = b.venue.contactPhone || b.venue.owner?.phone;
+    if (ownerPhone) await sendWhatsApp(ownerPhone, ownerText);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, ownerText);
+    await sendWhatsApp(b.contactPhone, `Godelicious: your booking at ${b.venue.name} for ${d} is confirmed. Advance ${rupees(b.advanceAmount)} received. Balance ${rupees(bal)} is paid to the venue as agreed.`);
+  } catch (err) { console.error("notifyVenueAdvancePaid failed:", err.message); }
+}
+
+// Customer cancelled a request -> owner, company number
+async function notifyVenueCancelled(bookingId) {
+  try {
+    const b = await prisma.venueBooking.findUnique({ where: { id: bookingId }, include: { venue: { include: { owner: true } } } });
+    if (!b) return;
+    const d = new Date(b.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    const text = `VENUE REQUEST CANCELLED BY CUSTOMER\n${b.venue.name}: ${b.eventType} on ${d}\nThe date is free again.`;
+    await sendPushToUser(b.venue.ownerId, { title: "Request cancelled", body: `${b.eventType} on ${d} was cancelled by the customer`, data: { type: "venue_cancel", url: "/venue/calendar" } });
+    const ownerPhone = b.venue.contactPhone || b.venue.owner?.phone;
+    if (ownerPhone) await sendWhatsApp(ownerPhone, text);
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, text);
+  } catch (err) { console.error("notifyVenueCancelled failed:", err.message); }
+}
+
+// ---------- Delivery partners (riders) ----------
+async function riderUserAndPhone(partnerId) {
+  const p = await prisma.deliveryPartner.findUnique({ where: { id: partnerId } });
+  return p;
+}
+
+// Order offered or assigned to a rider
+async function notifyRiderAssigned(orderId) {
+  try {
+    const o = await prisma.order.findUnique({ where: { id: orderId }, include: { deliveryPartner: true, items: { include: { menuItem: true } }, user: { select: { name: true } } } });
+    if (!o?.deliveryPartner) return;
+    const p = o.deliveryPartner;
+    const when = new Date(o.eventDate).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
+    const due = o.paymentMethod === "COD" && o.paymentStatus !== "PAID" ? o.totalAmount - (o.advancePaid ? o.advanceAmount || 0 : 0) : 0;
+    const map = o.latitude != null ? `\nMap: https://maps.google.com/?q=${o.latitude},${o.longitude}` : "";
+    if (p.userId) {
+      await sendPushToUser(p.userId, { title: `New delivery #${shortId(o.id)}`, body: `${o.deliveryAddress}`.slice(0, 150), data: { type: "rider_offer", orderId: o.id, url: "/rider" } });
+    }
+    await sendWhatsApp(p.phone,
+      `GODELICIOUS DELIVERY #${shortId(o.id)}\n` +
+      `Deliver by: ${when}\n${o.user?.name || "Customer"} - ${o.contactPhone}\n${o.deliveryAddress}${map}\n` +
+      `${itemsText(o.items)}\n${due > 0 ? `Collect cash: ${rupees(due)}` : "Already paid online"}\n` +
+      (p.userId ? `Accept or reject in ${riderAppLink()}, or reply here:\nACCEPT ${shortId(o.id)}\nREJECT ${shortId(o.id)} reason` : "Please confirm by replying to Godelicious."));
+  } catch (err) { console.error("notifyRiderAssigned failed:", err.message); }
+}
+
+// Rider accepted or rejected an offer -> company number and staff
+async function notifyRiderDecision(orderId, riderName, accepted, reason) {
+  try {
+    const text = `${accepted ? "RIDER ACCEPTED" : "RIDER REJECTED"} #${shortId(orderId)}\n${riderName}${!accepted ? `\n${reason ? `Reason: ${reason}\n` : ""}Assign another rider: reply ASSIGN ${shortId(orderId)} rider name` : ""}`;
+    await pushMany(await staffUserIds(), { title: accepted ? "Rider accepted" : "Rider rejected", body: `#${shortId(orderId)} - ${riderName}`, data: { type: "rider", orderId, url: "/orders" } });
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, text);
+  } catch (err) { console.error("notifyRiderDecision failed:", err.message); }
+}
+
+// Picked up -> customer gets the 4-digit delivery code and tracking link
+async function notifyDeliveryCode(orderId) {
+  try {
+    const o = await prisma.order.findUnique({ where: { id: orderId }, include: { deliveryPartner: true, user: { select: { name: true } } } });
+    if (!o?.deliveryOtp) return;
+    const track = o.trackToken ? ` Track live: ${SITE_URL}/track/${o.trackToken}` : "";
+    await sendPushToUser(o.userId, { title: "Your order is on the way", body: `Delivery code ${o.deliveryOtp}. Share it with ${o.deliveryPartner?.name || "the delivery partner"} at the door.`, data: { type: "order_status", orderId: o.id } });
+    await customerWhatsApp(o, "on the way", `Your delivery code is ${o.deliveryOtp}. Share it with ${o.deliveryPartner?.name || "our delivery partner"} (${o.deliveryPartner?.phone || ""}) only when you receive the order.${track}`);
+  } catch (err) { console.error("notifyDeliveryCode failed:", err.message); }
+}
+
+// New rider registered -> admin
+async function notifyNewRider(partnerId) {
+  try {
+    const p = await riderUserAndPhone(partnerId);
+    if (!p) return;
+    await pushMany(await staffUserIds(), { title: "New delivery partner", body: `${p.name} registered and awaits approval`, data: { type: "approval", url: "/delivery-partners" } });
+    const admin = await adminWhatsappNumber();
+    if (admin) await sendWhatsApp(admin, `NEW DELIVERY PARTNER\n${p.name} - ${p.phone}\n${[p.vehicleType, p.vehicleNumber].filter(Boolean).join(" ")}\nCheck documents and approve in Admin > Delivery Partners.`);
+  } catch (err) { console.error("notifyNewRider failed:", err.message); }
+}
+
+// Approved / suspended -> rider
+async function notifyRiderStatus(partnerId) {
+  try {
+    const p = await riderUserAndPhone(partnerId);
+    if (!p) return;
+    const text = p.status === "APPROVED"
+      ? `Godelicious: you're approved as a delivery partner. Open ${riderAppLink()}, go online and start receiving orders.`
+      : p.status === "SUSPENDED" ? "Godelicious: your delivery partner account is paused. Please contact Godelicious." : null;
+    if (!text) return;
+    if (p.userId) await sendPushToUser(p.userId, { title: p.status === "APPROVED" ? "You're approved" : "Account paused", body: text.replace("Godelicious: ", ""), data: { type: "rider_status", url: "/rider" } });
+    await sendWhatsApp(p.phone, text);
+  } catch (err) { console.error("notifyRiderStatus failed:", err.message); }
+}
+
 module.exports = {
+  notifyRiderAssigned, notifyRiderDecision, notifyDeliveryCode, notifyNewRider, notifyRiderStatus,
+  notifyVenueApproved, notifyVenueAdvancePaid, notifyVenueCancelled,
   notifyNewOrder, notifyPaymentReceived, notifyOrderUpdate,
   notifyNewBrandPartner, notifyBrandApproved, notifyPartnerMessage,
   notifyAdminsApprovalNeeded, notifyBrandDecision,

@@ -20,6 +20,8 @@ const NEXT_STATUS = {
   OUT_FOR_DELIVERY: "DELIVERED",
 };
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://godelicious.in";
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState("");
@@ -78,25 +80,33 @@ export default function OrdersPage() {
     ].filter(Boolean).join("\n");
   }
 
-  async function forwardOrder(order) {
+  // Assign: the rider gets the order in the rider app and on WhatsApp (sent by the server).
+  async function assignOrder(order) {
     const partnerId = selectedPartner[order.id];
     if (!partnerId) {
       setError("Pick a delivery partner first.");
       return;
     }
-    const partner = partners.find((p) => p.id === partnerId);
-    if (!partner) return;
-
-    const message = buildOrderMessage(order);
-    const waNumber = toWhatsAppNumber(partner.phone);
-    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, "_blank");
-
+    setError("");
     try {
-      await api.forwardOrderToPartner(order.id, partnerId);
+      await api.assignOrderToRider(order.id, partnerId);
       load();
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  // Manual fallback: open WhatsApp on this computer with the order details typed in.
+  function whatsappRider(order) {
+    const partner = partners.find((p) => p.id === (selectedPartner[order.id] || order.deliveryPartnerId));
+    if (!partner) return setError("Pick a delivery partner first.");
+    const waNumber = toWhatsAppNumber(partner.phone);
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(buildOrderMessage(order))}`, "_blank");
+  }
+
+  async function unassign(order) {
+    if (!confirm(`Take order #${order.id.slice(0, 8).toUpperCase()} back from ${order.deliveryPartner?.name}?`)) return;
+    try { await api.unassignOrder(order.id); load(); } catch (err) { setError(err.message); }
   }
 
   async function advance(order) {
@@ -180,9 +190,20 @@ export default function OrdersPage() {
                   </span>
                 )}
                 {order.deliveryPartner && (
-                  <span className="text-xs font-mono px-1.5 py-0.5 rounded-sm bg-blue-50 text-blue-700">
+                  <span className={`text-xs font-mono px-1.5 py-0.5 rounded-sm ${order.assignStatus === "OFFERED" ? "bg-saffron/15 text-saffron2" : "bg-blue-50 text-blue-700"}`}>
                     → {order.deliveryPartner.name}
+                    {order.assignStatus === "OFFERED" ? " · waiting for rider" : order.assignStatus === "ACCEPTED" ? " · accepted" : ""}
+                    {order.pickedUpAt && !order.deliveredAt ? " · picked up" : ""}
+                    <button onClick={() => unassign(order)} className="ml-1 text-chili" title="Take back">×</button>
                   </span>
+                )}
+                {order.assignStatus === "REJECTED" && !order.deliveryPartner && (
+                  <span className="text-xs font-mono px-1.5 py-0.5 rounded-sm bg-chili/10 text-chili">Rider declined · assign again</span>
+                )}
+                {order.trackToken && order.deliveryPartner && (
+                  <a href={`${SITE_URL}/track/${order.trackToken}`} target="_blank" rel="noreferrer" className="text-xs font-mono px-1.5 py-0.5 rounded-sm bg-basil/10 text-basil">
+                    Track live ↗
+                  </a>
                 )}
               </div>
               <div className="font-medium text-ink">{order.user.name} · {order.user.phone}</div>
@@ -248,17 +269,26 @@ export default function OrdersPage() {
                     onChange={(e) => setSelectedPartner({ ...selectedPartner, [order.id]: e.target.value })}
                     className="text-xs border border-line rounded-sm px-1.5 py-1.5 bg-white max-w-[120px]"
                   >
-                    <option value="">Partner…</option>
+                    <option value="">Rider…</option>
                     {partners.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                      <option key={p.id} value={p.id}>
+                        {p.isOnline ? "🟢 " : ""}{p.name}{p.activeOrders ? ` (${p.activeOrders})` : ""}
+                      </option>
                     ))}
                   </select>
                   <button
-                    onClick={() => forwardOrder(order)}
-                    className="bg-[#25D366] text-white text-xs px-2.5 py-1.5 rounded-sm whitespace-nowrap"
-                    title="Opens WhatsApp with order details pre-filled"
+                    onClick={() => assignOrder(order)}
+                    className="bg-charcoal text-paper text-xs px-2.5 py-1.5 rounded-sm whitespace-nowrap"
+                    title="Sends the order to the rider's app and WhatsApp"
                   >
-                    Forward
+                    {order.deliveryPartner ? "Reassign" : "Assign"}
+                  </button>
+                  <button
+                    onClick={() => whatsappRider(order)}
+                    className="bg-[#25D366] text-white text-xs px-2 py-1.5 rounded-sm"
+                    title="Open WhatsApp on this computer with the order details"
+                  >
+                    WA
                   </button>
                 </div>
               )}

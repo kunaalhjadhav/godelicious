@@ -210,6 +210,25 @@ export const api = {
   createDeliveryPartner: (payload) => request("/api/delivery-partners", { method: "POST", body: payload }),
   updateDeliveryPartner: (id, payload) => request(`/api/delivery-partners/${id}`, { method: "PATCH", body: payload }),
   deleteDeliveryPartner: (id) => request(`/api/delivery-partners/${id}`, { method: "DELETE" }),
+  assignOrderToRider: (orderId, partnerId) =>
+    request(`/api/delivery-partners/assign/${orderId}`, { method: "POST", body: { partnerId } }),
+  unassignOrder: (orderId) => request(`/api/delivery-partners/unassign/${orderId}`, { method: "POST" }),
+  liveRiders: () => request("/api/delivery-partners/live"),
+
+  // Rider (delivery partner) app
+  registerRider: (payload) => request("/api/rider/register", { method: "POST", body: payload }),
+  riderMe: () => request("/api/rider/me"),
+  riderUpdate: (payload) => request("/api/rider/me", { method: "PATCH", body: payload }),
+  riderOnline: (online) => request("/api/rider/online", { method: "POST", body: { online } }),
+  riderLocation: (lat, lng) => request("/api/rider/location", { method: "POST", body: { lat, lng } }),
+  riderOrders: () => request("/api/rider/orders"),
+  riderAccept: (id) => request(`/api/rider/orders/${id}/accept`, { method: "POST" }),
+  riderReject: (id, reason) => request(`/api/rider/orders/${id}/reject`, { method: "POST", body: { reason } }),
+  riderPickup: (id) => request(`/api/rider/orders/${id}/pickup`, { method: "POST" }),
+  riderDeliver: (id, otp, cashCollected) =>
+    request(`/api/rider/orders/${id}/deliver`, { method: "POST", body: { otp, cashCollected } }),
+  riderEarnings: (days) => request(`/api/rider/earnings?days=${days || 7}`),
+
   forwardOrderToPartner: (orderId, deliveryPartnerId) =>
     request(`/api/orders/${orderId}/forward`, { method: "PATCH", body: { deliveryPartnerId } }),
 

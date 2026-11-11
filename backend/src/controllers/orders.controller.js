@@ -307,7 +307,7 @@ async function createOrder(req, res) {
           items: { include: { menuItem: true } },
           addons: { include: { addon: true } },
           orderType: true,
-          deliveryPartner: true,
+          deliveryPartner: { select: { id: true, name: true, phone: true, vehicleType: true, vehicleNumber: true } },
         },
       });
       if (pointsUsed > 0) {
@@ -334,7 +334,7 @@ async function myOrders(req, res) {
       items: { include: { menuItem: true } },
       addons: { include: { addon: true } },
       orderType: true,
-          deliveryPartner: true,
+          deliveryPartner: { select: { id: true, name: true, phone: true, vehicleType: true, vehicleNumber: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -349,7 +349,7 @@ async function getOrder(req, res) {
       items: { include: { menuItem: true } },
       addons: { include: { addon: true } },
       orderType: true,
-          deliveryPartner: true,
+          deliveryPartner: { select: { id: true, name: true, phone: true, vehicleType: true, vehicleNumber: true } },
       user: { select: { id: true, name: true, email: true, phone: true } },
       review: true,
       events: { orderBy: { createdAt: "asc" } },
@@ -476,16 +476,12 @@ async function confirmCod(req, res) {
 async function forwardToPartner(req, res) {
   const { deliveryPartnerId } = req.body;
   if (!deliveryPartnerId) return res.status(400).json({ error: "deliveryPartnerId is required." });
-
-  const partner = await prisma.deliveryPartner.findUnique({ where: { id: deliveryPartnerId } });
-  if (!partner) return res.status(404).json({ error: "Delivery partner not found." });
-
-  const order = await prisma.order.update({
-    where: { id: req.params.id },
-    data: { deliveryPartnerId, forwardedAt: new Date() },
-    include: { deliveryPartner: true },
-  });
-  res.json({ order });
+  try {
+    const order = await require("../services/orderActions.service").assignOrder(req.params.id, deliveryPartnerId);
+    res.json({ order });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 }
 
 module.exports = { createOrder, myOrders, getOrder, listOrders, updateOrderStatus, confirmCod, forwardToPartner };

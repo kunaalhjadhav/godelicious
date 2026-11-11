@@ -90,6 +90,20 @@ async function handleIncoming(m) {
   const text = m.nonText ? "[The customer sent a photo, voice note or file]" : m.text.slice(0, 2000);
   await prisma.botMessage.create({ data: { conversationId: convo.id, sender: "CUSTOMER", text, externalId: m.externalId || null } });
 
+  // Order commands (ACCEPT / REJECT / ASSIGN ...) from the company number or a delivery partner.
+  if (m.channel === "WHATSAPP" && !m.nonText) {
+    let cmdReply = null;
+    try { cmdReply = await require("../services/waCommands.service").handleCommand(m.contactId, m.text); }
+    catch (err) { console.error("[wa-cmd]", err.message); cmdReply = `Could not run that command: ${err.message}`; }
+    if (cmdReply) {
+      try {
+        const sentId = await messaging.sendText(m.channel, m.contactId, cmdReply);
+        await prisma.botMessage.create({ data: { conversationId: convo.id, sender: "BOT", text: cmdReply, externalId: sentId || null } });
+      } catch (err) { console.error("[wa-cmd] reply failed:", err.message); }
+      return;
+    }
+  }
+
   const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
   if (!settings?.botEnabled || convo.status !== "BOT") {
     // Assistant is off, or a person has this chat: just keep the message for the inbox.

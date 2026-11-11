@@ -17,6 +17,7 @@ enum Role {
   STAFF
   VENUE_PARTNER
   BRAND_PARTNER
+  DELIVERY_PARTNER
 }
 
 enum OrderStatus {
@@ -108,6 +109,7 @@ model User {
   notificationReads NotificationRead[]
   reviews         Review[]
 
+  deliveryPartner DeliveryPartner?
   brandId  String? // set only for role = BRAND_PARTNER; which brand this login manages
   brand    Brand?  @relation(fields: [brandId], references: [id])
   deviceTokens DeviceToken[]
@@ -341,6 +343,13 @@ model Order {
   deliveryPartnerId String?
   deliveryPartner    DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
   forwardedAt        DateTime?        // when this order was sent to the delivery partner via WhatsApp
+  assignStatus       String?          // OFFERED | ACCEPTED | REJECTED (rider app)
+  riderAcceptedAt    DateTime?
+  pickedUpAt         DateTime?
+  deliveredAt        DateTime?
+  deliveryOtp        String?          // 4-digit code the customer gives the rider at the door
+  trackToken         String?   @unique // public live-tracking link token
+  cashCollected      Float     @default(0) // cash the rider collected at the door
 
   deliveryFee      Float         @default(0)
   gstAmount        Float         @default(0) // 5% GST added on top of (items - discount); 0 on older orders (GST was included)
@@ -368,6 +377,22 @@ model DeliveryPartner {
   phone     String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  // Rider app login and approval
+  userId        String?   @unique  // the DELIVERY_PARTNER login, when the rider uses the app
+  user          User?     @relation(fields: [userId], references: [id])
+  status        String    @default("APPROVED") // PENDING | APPROVED | SUSPENDED (self-registered riders start PENDING)
+  vehicleType   String?   // Bike, Scooter, Cycle, Car
+  vehicleNumber String?
+  photoUrl      String?
+  licenceUrl    String?   // driving licence
+  rcUrl         String?   // vehicle registration
+  idProofUrl    String?   // Aadhaar or other ID
+  // Live status
+  isOnline      Boolean   @default(false)
+  lastLat       Float?
+  lastLng       Float?
+  lastSeenAt    DateTime?
 
   orders Order[]
 }
@@ -539,6 +564,7 @@ model AppSettings {
   adminWhatsapp   String?  // number that receives new-order WhatsApp alerts (with country code, e.g. 919916989185)
   whatsappAlerts  Boolean  @default(true)
   customerWhatsappAlerts Boolean @default(true) // order messages to customers on WhatsApp
+  riderPayPerOrder Float  @default(40) // what a delivery partner earns per delivered order (rupees)
   deliveryFee     Float    @default(0)   // 0 = delivery is always free
   freeDeliveryAbove Float  @default(0)   // fee waived when the order is at least this much (0 = no threshold)
   subscriptionDiscountPct Float @default(8) // weekly meal box saving
