@@ -106,4 +106,22 @@ export const api = {
   // Push notifications
   registerDevice: (token, platform) => request("/api/devices/register", { method: "POST", body: { token, platform } }),
   unregisterDevice: (token) => request("/api/devices/register", { method: "DELETE", body: { token } }),
+
+  // Profile (same endpoints as the mobile app)
+  deleteAccount: () => request("/api/auth/me", { method: "DELETE" }),
+  myLoyalty: () => request("/api/loyalty/me"),
+  applyReferral: (code) => request("/api/loyalty/apply-referral", { method: "POST", body: { code } }),
+  myFavorites: () => request("/api/favorites"),
+  removeFavorite: (menuItemId) => request(`/api/favorites/${menuItemId}`, { method: "DELETE" }),
+  setFavoriteNotify: (menuItemId, notify) => request(`/api/favorites/${menuItemId}/notify`, { method: "PATCH", body: { notify } }),
+  myAddresses: () => request("/api/addresses"),
+  addAddress: (payload) => request("/api/addresses", { method: "POST", body: payload }),
+  updateAddress: (id, payload) => request(`/api/addresses/${id}`, { method: "PATCH", body: payload }),
+  deleteAddress: (id) => request(`/api/addresses/${id}`, { method: "DELETE" }),
+  subscriptionPlans: () => request("/api/subscriptions/plans"),
+  mySubscriptions: () => request("/api/subscriptions/my"),
+  createSubscription: (payload) => request("/api/subscriptions", { method: "POST", body: payload }),
+  updateSubscription: (id, payload) => request(`/api/subscriptions/${id}`, { method: "PATCH", body: payload }),
+  skipSubscriptionDay: (id, date) => request(`/api/subscriptions/${id}/skip`, { method: "POST", body: { date } }),
+  unskipSubscriptionDay: (id, date) => request(`/api/subscriptions/${id}/skip/${date}`, { method: "DELETE" }),
 };
