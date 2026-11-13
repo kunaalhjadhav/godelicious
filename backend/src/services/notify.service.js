@@ -4,6 +4,8 @@
 const prisma = require("../config/db");
 const { sendPushToUser } = require("./push.service");
 const { sendWhatsApp, sendWhatsAppTemplate } = require("./whatsapp.service");
+const { smsQuiet } = require("./sms.service");
+const amt = (n) => Math.round(Number(n) || 0).toLocaleString("en-IN");
 
 const rupees = (n) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 const shortId = (id) => String(id).slice(0, 8).toUpperCase();
@@ -100,6 +102,8 @@ async function notifyNewOrder(orderId) {
     });
     const adminPhone = await adminWhatsappNumber();
     if (adminPhone) await sendWhatsApp(adminPhone, adminText);
+    if (adminPhone) await smsQuiet(adminPhone, "ADMIN_NEW_ORDER", `#${shortId(order.id)}`, amt(order.totalAmount), order.user?.name || "a customer");
+    await smsQuiet(order.contactPhone || order.user?.phone, "ORDER_PLACED", String(order.user?.name || "there").split(" ")[0], `#${shortId(order.id)}`, amt(order.totalAmount));
 
     // Customer: order received
     const needsAdvance = order.paymentMethod === "COD" && order.advanceAmount > 0 && !order.advancePaid;
@@ -156,6 +160,7 @@ async function notifyPaymentReceived(orderId) {
     await customerWhatsApp(order, "paid", isAdvance
       ? `We received your advance of ${rupees(paid)}. Please pay ${rupees(order.totalAmount - paid)} in cash on delivery.`
       : `We received ${rupees(paid)} online. Thank you!`);
+    await smsQuiet(order.contactPhone, "PAYMENT_RECEIVED", amt(paid), `#${shortId(order.id)}`);
   } catch (err) {
     console.error("notifyPaymentReceived failed:", err.message);
   }
@@ -190,6 +195,21 @@ async function notifyOrderUpdate(orderId, status, note) {
           CANCELLED: "If you paid online, the refund follows our Cancellation & Refund Policy. Questions? Reply in the app chat.",
         }[status] || "";
     await customerWhatsApp(order, note && /cash payment collected/i.test(note) ? "fully paid" : (CUSTOMER_STATUS[status] || String(status).toLowerCase()), detail);
+
+    // Customer SMS (DLT templates)
+    const ref = `#${shortId(order.id)}`;
+    const to = order.contactPhone || order.user?.phone;
+    if (!note) {
+      if (status === "CONFIRMED") {
+        const when = order.eventDate ? `${new Date(order.eventDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "Asia/Kolkata" })}${order.eventTime ? ` ${order.eventTime}` : ""}` : "your chosen time";
+        await smsQuiet(to, "ORDER_CONFIRMED", ref, when);
+      } else if (status === "OUT_FOR_DELIVERY") {
+        const rider = order.deliveryPartnerId ? await prisma.deliveryPartner.findUnique({ where: { id: order.deliveryPartnerId }, select: { name: true } }) : null;
+        if (order.deliveryOtp && order.trackToken && rider) await smsQuiet(to, "ORDER_OUT_TRACK", ref, rider.name, order.deliveryOtp, order.trackToken);
+        else await smsQuiet(to, "ORDER_OUT", ref);
+      } else if (status === "DELIVERED") await smsQuiet(to, "ORDER_DELIVERED", ref);
+      else if (status === "CANCELLED") await smsQuiet(to, "ORDER_CANCELLED", ref);
+    }
 
     // Company number
     const phone = await adminWhatsappNumber();
@@ -356,6 +376,7 @@ async function notifyVenueAdvancePaid(bookingId) {
     if (ownerPhone) await sendWhatsApp(ownerPhone, ownerText);
     const admin = await adminWhatsappNumber();
     if (admin) await sendWhatsApp(admin, ownerText);
+    await smsQuiet(b.contactPhone, "VENUE_CONFIRMED", b.venue.name, d, amt(b.advanceAmount));
     await sendWhatsApp(b.contactPhone, `Godelicious: your booking at ${b.venue.name} for ${d} is confirmed. Advance ${rupees(b.advanceAmount)} received. Balance ${rupees(bal)} is paid to the venue as agreed.`);
   } catch (err) { console.error("notifyVenueAdvancePaid failed:", err.message); }
 }
@@ -393,6 +414,8 @@ async function notifyRiderAssigned(orderId) {
     if (p.userId) {
       await sendPushToUser(p.userId, { title: `New delivery #${shortId(o.id)}`, body: `${o.deliveryAddress}`.slice(0, 150), data: { type: "rider_offer", orderId: o.id, url: "/rider" } });
     }
+    const area = String(o.deliveryAddress || "").split(",").map((x) => x.trim()).filter(Boolean).slice(-3, -2)[0] || "Mysuru";
+    await smsQuiet(p.phone, "RIDER_NEW_ORDER", `#${shortId(o.id)}`, area);
     await sendWhatsApp(p.phone,
       `GODELICIOUS DELIVERY #${shortId(o.id)}\n` +
       `Deliver by: ${when}\n${o.user?.name || "Customer"} - ${o.contactPhone}\n${o.deliveryAddress}${map}\n` +
@@ -444,6 +467,7 @@ async function notifyRiderStatus(partnerId) {
     if (!text) return;
     if (p.userId) await sendPushToUser(p.userId, { title: p.status === "APPROVED" ? "You're approved" : "Account paused", body: text.replace("Godelicious: ", ""), data: { type: "rider_status", url: "/rider" } });
     await sendWhatsApp(p.phone, text);
+    if (p.status === "APPROVED") await smsQuiet(p.phone, "RIDER_APPROVED");
   } catch (err) { console.error("notifyRiderStatus failed:", err.message); }
 }
 

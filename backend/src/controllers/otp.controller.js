@@ -28,24 +28,9 @@ function toTextLocalNumber(phone) {
 }
 
 async function sendViaTextLocal(phone, code) {
-  const params = new URLSearchParams({
-    apikey: process.env.TEXTLOCAL_API_KEY,
-    numbers: toTextLocalNumber(phone),
-    sender: process.env.TEXTLOCAL_SENDER,
-    message: `Your Godelicious verification code is ${code}. Valid for ${OTP_TTL_MINUTES} minutes.`,
-  });
-  // Indian DLT (TRAI) regulations require a registered Entity ID (PEID) on
-  // every transactional SMS sent to Indian numbers — without it, carriers
-  // silently drop the message even if TextLocal itself accepts the request.
-  if (process.env.TEXTLOCAL_ENTITY_ID) {
-    params.set("entity_id", process.env.TEXTLOCAL_ENTITY_ID);
-  }
-  const response = await fetch(`https://api.textlocal.in/send/?${params.toString()}`, { method: "POST" });
-  const data = await response.json();
-  if (data.status !== "success") {
-    const errMsg = data.errors?.[0]?.message || "Unknown TextLocal error";
-    throw new Error(errMsg);
-  }
+  // Text must match the DLT "OTP" template exactly: see services/sms.service.js
+  const sent = await require("../services/sms.service").sendSms(phone, "OTP", code);
+  if (!sent) throw new Error("SMS is not set up (check TEXTLOCAL_* and SMS_TEMPLATES_LIVE).");
 }
 
 // App Store / Google Play reviewers can't receive a real SMS, so they log in
@@ -53,41 +38,11 @@ async function sendViaTextLocal(phone, code) {
 // (REVIEW_PHONE / REVIEW_OTP). It only matches that single number — every
 // other number still needs a genuinely delivered code. Leave the vars unset
 // to switch this off entirely.
-function digitsOnly(phone) {
-  return String(phone || "").replace(/\D/g, "");
-}
-
-function last10(phone) {
-  return digitsOnly(phone).slice(-10);
-}
-
-function phoneVariants(phone) {
-  const last = last10(phone);
-  if (!last) return [];
-  return [...new Set([String(phone).trim(), digitsOnly(phone), last, `91${last}`, `+91${last}`])];
-}
-
 function isReviewPhone(phone) {
   const reviewPhone = process.env.REVIEW_PHONE;
   if (!reviewPhone || !process.env.REVIEW_OTP) return false;
+  const last10 = (v) => String(v).replace(/\D/g, "").slice(-10);
   return last10(phone) === last10(reviewPhone);
-}
-
-async function findUserByPhone(phone) {
-  const variants = phoneVariants(phone);
-  if (!variants.length) return null;
-  return prisma.user.findFirst({ where: { phone: { in: variants } } });
-}
-
-// POST /api/auth/otp/check-phone
-// body: { phone } — returns whether a customer account already exists for this number.
-async function checkPhone(req, res) {
-  const { phone } = req.body;
-  if (!phone || last10(phone).length !== 10) {
-    return res.status(400).json({ error: "Enter a valid 10-digit mobile number." });
-  }
-  const user = await findUserByPhone(phone);
-  res.json({ exists: Boolean(user) });
 }
 
 // POST /api/auth/otp/request
@@ -148,19 +103,15 @@ async function verifyOtp(req, res) {
     await prisma.otpCode.update({ where: { id: otp.id }, data: { consumed: true } });
   }
 
-  let user = await findUserByPhone(phone);
+  let user = await prisma.user.findFirst({ where: { phone } });
   if (!user) {
-    const trimmedName = String(name || "").trim();
-    if (trimmedName.length < 2) {
-      return res.status(400).json({ error: "Name is required to create an account." });
-    }
     // First-time phone login — create a minimal account. Email is required
     // to be unique in our schema, so give it a placeholder derived from the
     // phone; the person can add a real email later from their profile if needed.
     user = await prisma.user.create({
       data: {
-        name: trimmedName,
-        email: `${digitsOnly(phone)}@phone.godelicious.local`,
+        name: name || "Godelicious Customer",
+        email: `${phone.replace(/\D/g, "")}@phone.godelicious.local`,
         phone,
         passwordHash: crypto.randomBytes(32).toString("hex"), // unusable random hash — this account only logs in via OTP
         role: "CUSTOMER",
@@ -172,4 +123,4 @@ async function verifyOtp(req, res) {
   res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, brandId: user.brandId } });
 }
 
-module.exports = { checkPhone, requestOtp, verifyOtp };
+module.exports = { requestOtp, verifyOtp };
