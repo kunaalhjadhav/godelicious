@@ -1,5 +1,6 @@
 "use client";
 
+import MediaGallery from "@/components/MediaGallery";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
@@ -46,7 +47,11 @@ export default function VenueDetailPage() {
       <Nav />
       <div className="max-w-4xl mx-auto px-5 py-10 grid md:grid-cols-5 gap-8">
         <div className="md:col-span-3">
-          {venue.imageUrl && <img src={venue.imageUrl.startsWith("http") ? venue.imageUrl : `${API_URL}${venue.imageUrl}`} alt="" className="w-full h-64 object-cover rounded-sm mb-4" />}
+          {venue.gallery?.length || venue.videoUrl ? (
+            <MediaGallery photos={venue.gallery || []} videoUrl={venue.videoUrl} name={venue.name} />
+          ) : venue.imageUrl ? (
+            <img src={venue.imageUrl.startsWith("http") ? venue.imageUrl : `${API_URL}${venue.imageUrl}`} alt="" className="w-full h-64 object-cover rounded-sm mb-4" />
+          ) : null}
           <h1 className="font-display text-2xl text-ink">{venue.name}</h1>
           <p className="text-sm text-ink/60 mb-2">{venue.address}{venue.city ? `, ${venue.city}` : ""} · up to {venue.capacity} guests</p>
           {venue.description && <p className="text-sm text-ink/80 mb-4">{venue.description}</p>}

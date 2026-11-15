@@ -9,8 +9,9 @@ const { notifyVenueRequest, notifyVenueDecision, notifyNewVenuePartner, notifyVe
 const parseList = (v) => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
 const cleanList = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).slice(0, 40) : undefined);
 
+const { parseGallery, cleanGallery, cleanVideo } = require("../utils/gallery");
 function shapeVenue(v) {
-  return { ...v, eventTypes: parseList(v.eventTypes), services: parseList(v.services), foodOptions: parseList(v.foodOptions) };
+  return { ...v, eventTypes: parseList(v.eventTypes), services: parseList(v.services), foodOptions: parseList(v.foodOptions), gallery: parseGallery(v.gallery) };
 }
 
 // Event dates are calendar days. Store them as UTC midnight so a date never
@@ -97,6 +98,13 @@ async function updateMine(req, res) {
     for (const f of ["eventTypes", "services", "foodOptions"]) {
       const list = cleanList(b[f]);
       if (list) data[f] = JSON.stringify(list);
+    }
+    if (b.gallery !== undefined) data.gallery = cleanGallery(b.gallery);
+    if (b.videoUrl !== undefined) data.videoUrl = cleanVideo(b.videoUrl);
+    // The first gallery photo doubles as the cover image if no cover is set.
+    if (data.gallery && !venue.imageUrl && data.imageUrl === undefined) {
+      const first = JSON.parse(data.gallery)[0];
+      if (first) data.imageUrl = first;
     }
     const updated = await prisma.venue.update({ where: { id: venue.id }, data });
     res.json({ venue: shapeVenue(updated) });

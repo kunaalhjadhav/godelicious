@@ -4,6 +4,7 @@ import {
 } from "react-native";
 import { api, API_URL } from "../api/client";
 import { colors, spacing } from "../theme";
+import MediaGallery from "../components/MediaGallery";
 
 const UNIT = { EVENT: "per event", DAY: "per day", HOUR: "per hour", PLATE: "per plate" };
 const KIND = { HALL: "Venue", FOOD: "Food", SERVICE: "Services" };
@@ -92,7 +93,9 @@ export default function VenueDetailScreen({ route, navigation }) {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-      {imgUri ? <Image source={{ uri: imgUri }} style={styles.hero} resizeMode="cover" /> : null}
+      {venue.gallery?.length || venue.videoUrl
+        ? <MediaGallery photos={venue.gallery || []} videoUrl={venue.videoUrl} />
+        : imgUri ? <Image source={{ uri: imgUri }} style={styles.hero} resizeMode="cover" /> : null}
       <View style={styles.section}>
         <Text style={styles.title}>{venue.name}</Text>
         <Text style={styles.detail}>{venue.address}{venue.city ? `, ${venue.city}` : ""}</Text>

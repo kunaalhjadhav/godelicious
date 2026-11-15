@@ -1,5 +1,6 @@
 "use client";
 
+import GalleryManager from "@/components/GalleryManager";
 import { useEffect, useState } from "react";
 import VenueShell from "@/components/VenueShell";
 import { api, API_URL } from "@/lib/api";
@@ -90,8 +91,8 @@ export default function VenueProfilePage() {
       <p className="text-sm text-ink/50 mb-6">What customers see: description, capacity, event types, food and other services.</p>
       {error && <p className="text-chili text-sm mb-4">{error}</p>}
 
-      <form onSubmit={save} className="bg-white border border-line rounded-sm p-6 max-w-2xl mb-8">
-        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Photo</label>
+      <form onSubmit={save} className="bg-white border border-line rounded-sm p-4 sm:p-6 max-w-2xl mb-8">
+        <label className="block text-xs font-mono uppercase text-ink/60 mb-1">Cover photo</label>
         <div className="flex items-center gap-3 mb-4">
           {img ? <img src={img} alt="" className="w-24 h-16 object-cover rounded-sm border border-line" /> : <div className="w-24 h-16 bg-line rounded-sm" />}
           <div><input type="file" accept="image/*" onChange={upload} className="text-xs" />{uploading && <p className="text-xs text-saffron2">Uploading…</p>}</div>
@@ -125,9 +126,18 @@ export default function VenueProfilePage() {
         {saved && <span className="ml-3 text-sm text-basil">✓ Saved</span>}
       </form>
 
+      <div className="max-w-2xl mb-8">
+        <GalleryManager
+          title="Venue photos & video"
+          gallery={v.gallery || []}
+          videoUrl={v.videoUrl || ""}
+          onSave={async (payload) => { const r = await api.updateMyVenue(payload); setV((x) => ({ ...x, gallery: r.venue.gallery, videoUrl: r.venue.videoUrl, imageUrl: r.venue.imageUrl })); }}
+        />
+      </div>
+
       <h2 className="font-display text-lg mb-2">Blocked dates</h2>
       <div className="bg-white border border-line rounded-sm p-5 max-w-2xl">
-        <div className="flex gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-3">
           <input type="date" value={blockDate} onChange={(e) => setBlockDate(e.target.value)} className="px-3 py-2 border border-line rounded-sm text-sm" />
           <button onClick={addBlock} className="bg-charcoal text-paper text-sm px-4 rounded-sm">Block date</button>
         </div>

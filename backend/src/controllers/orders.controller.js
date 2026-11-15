@@ -121,6 +121,16 @@ async function createOrder(req, res) {
           throw new Error(`Minimum order for ${menuItem.name} is ${menuItem.minOrderGrams}g.`);
         }
 
+        // Brand partners can mark days closed (Partner portal > Schedule)
+        if (menuItem.brandId && deliveryDateTime && !isNaN(deliveryDateTime)) {
+          const ymd = new Date(deliveryDateTime.getTime() + 330 * 60000).toISOString().slice(0, 10);
+          const closed = await tx.brandClosure.findUnique({
+            where: { brandId_date: { brandId: menuItem.brandId, date: new Date(`${ymd}T00:00:00.000Z`) } },
+            include: { brand: { select: { name: true } } },
+          });
+          if (closed) throw new Error(`${closed.brand.name} is closed on that date, so ${menuItem.name} can't be delivered then. Please pick another date or remove it.`);
+        }
+
         // Weight-sold items are priced per kg — quantity is grams, so the
         // effective unit price (matching how quantity is expressed) is per gram.
         // Combo items: add up any priceDelta for the customer's selected options.

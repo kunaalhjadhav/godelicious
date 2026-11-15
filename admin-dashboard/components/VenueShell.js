@@ -13,7 +13,7 @@ const NAV = [
   { href: "/venue/calendar", label: "Calendar & Requests" },
   { href: "/venue/bookings", label: "Bookings & Payments" },
   { href: "/venue/tariffs", label: "Tariffs" },
-  { href: "/venue/profile", label: "Venue Details" },
+  { href: "/venue/profile", label: "Venue Details & Gallery" },
   { href: "/venue/chat", label: "Chat with us" },
 ];
 

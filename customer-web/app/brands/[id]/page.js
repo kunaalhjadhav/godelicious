@@ -1,5 +1,6 @@
 "use client";
 
+import MediaGallery from "@/components/MediaGallery";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -65,6 +66,8 @@ export default function BrandDetailPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-5 py-10">
+        {brand?.description && <p className="text-sm text-ink/80 mb-4 whitespace-pre-line">{brand.description}</p>}
+        <MediaGallery photos={brand?.gallery || []} videoUrl={brand?.videoUrl} name={brand?.name} />
         {loading ? (
           <p className="text-sm text-ink/40">Loading menu…</p>
         ) : items.length === 0 ? (

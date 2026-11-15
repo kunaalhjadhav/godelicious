@@ -255,6 +255,11 @@ export const api = {
 
   // Venue partner portal
   registerVenuePartner: (payload) => request("/api/venues/register", { method: "POST", body: payload }),
+  brandProfile: () => request("/api/brand-partners/me/profile"),
+  updateBrandProfile: (payload) => request("/api/brand-partners/me/profile", { method: "PUT", body: payload }),
+  brandSchedule: (month) => request(`/api/brand-partners/me/schedule?month=${month}`),
+  addBrandClosure: (date, reason) => request("/api/brand-partners/me/closures", { method: "POST", body: { date, reason } }),
+  removeBrandClosure: (id) => request(`/api/brand-partners/me/closures/${id}`, { method: "DELETE" }),
   myVenueDashboard: () => request("/api/venues/me/dashboard"),
   myVenue: () => request("/api/venues/me"),
   updateMyVenue: (payload) => request("/api/venues/me", { method: "PUT", body: payload }),

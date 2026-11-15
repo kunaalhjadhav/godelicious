@@ -44,10 +44,11 @@ async function setBrandLogin(req, res) {
 async function listActiveBrands(req, res) {
   const brands = await prisma.brand.findMany({
     where: { isActive: true, isApproved: true },
-    select: { id: true, name: true, logoUrl: true },
+    select: { id: true, name: true, logoUrl: true, description: true, gallery: true, videoUrl: true },
     orderBy: { name: "asc" },
   });
-  res.json({ brands });
+  const { parseGallery } = require("../utils/gallery");
+  res.json({ brands: brands.map((b) => ({ ...b, gallery: parseGallery(b.gallery) })) });
 }
 
 // POST /api/brands (ADMIN)

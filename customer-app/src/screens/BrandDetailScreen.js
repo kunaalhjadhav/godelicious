@@ -4,6 +4,7 @@ import { api, API_URL } from "../api/client";
 import { useCart } from "../context/CartContext";
 import { colors, spacing } from "../theme";
 import ComboPickerModal from "../components/ComboPickerModal";
+import MediaGallery from "../components/MediaGallery";
 
 function resolveImageUrl(url) {
   if (!url) return null;
@@ -16,6 +17,11 @@ export default function BrandDetailScreen({ route }) {
   const [loading, setLoading] = useState(true);
   const [comboItem, setComboItem] = useState(null);
   const { addItem } = useCart();
+  const [brand, setBrand] = useState(null);
+
+  useEffect(() => {
+    api.listBrandsPublic().then((d) => setBrand((d.brands || []).find((b) => b.id === brandId) || null)).catch(() => {});
+  }, [brandId]);
 
   useEffect(() => {
     api.listMenuByBrand(brandId).then((d) => setItems(d.items)).catch(() => {}).finally(() => setLoading(false));
@@ -48,6 +54,12 @@ export default function BrandDetailScreen({ route }) {
         data={items}
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ padding: spacing.md }}
+        ListHeaderComponent={brand && (brand.gallery?.length || brand.videoUrl || brand.description) ? (
+          <View style={{ marginHorizontal: -spacing.md, marginTop: -spacing.md, marginBottom: spacing.md }}>
+            <MediaGallery photos={brand.gallery || []} videoUrl={brand.videoUrl} />
+            {!!brand.description && <Text style={styles.brandAbout}>{brand.description}</Text>}
+          </View>
+        ) : null}
         ListEmptyComponent={<Text style={styles.empty}>This brand doesn't have any items listed yet.</Text>}
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -89,6 +101,7 @@ export default function BrandDetailScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
+  brandAbout: { color: colors.ink, fontSize: 14, lineHeight: 20, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.paper },
   empty: { textAlign: "center", color: colors.inkFaint, marginTop: spacing.xl },
   card: {

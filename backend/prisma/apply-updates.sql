@@ -91,3 +91,22 @@ ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "trackToken" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "Order_trackToken_key" ON "Order"("trackToken");
 ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "cashCollected" DOUBLE PRECISION NOT NULL DEFAULT 0;
 ALTER TABLE "AppSettings" ADD COLUMN IF NOT EXISTS "riderPayPerOrder" DOUBLE PRECISION NOT NULL DEFAULT 40;
+
+
+-- 2026-11-16: photo galleries + video for venues and brands, brand closed days
+ALTER TABLE "Venue" ADD COLUMN IF NOT EXISTS "gallery" TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE "Venue" ADD COLUMN IF NOT EXISTS "videoUrl" TEXT;
+ALTER TABLE "Brand" ADD COLUMN IF NOT EXISTS "description" TEXT;
+ALTER TABLE "Brand" ADD COLUMN IF NOT EXISTS "gallery" TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE "Brand" ADD COLUMN IF NOT EXISTS "videoUrl" TEXT;
+CREATE TABLE IF NOT EXISTS "BrandClosure" (
+  "id" TEXT NOT NULL,
+  "brandId" TEXT NOT NULL,
+  "date" TIMESTAMP(3) NOT NULL,
+  "reason" TEXT,
+  CONSTRAINT "BrandClosure_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "BrandClosure_brandId_date_key" ON "BrandClosure"("brandId", "date");
+DO $$ BEGIN
+  ALTER TABLE "BrandClosure" ADD CONSTRAINT "BrandClosure_brandId_fkey" FOREIGN KEY ("brandId") REFERENCES "Brand"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

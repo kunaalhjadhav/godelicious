@@ -404,7 +404,100 @@ async function myEarnings(req, res) {
   });
 }
 
+// ---------- Profile: about text, up to 8 photos and one video ----------
+const { parseGallery, cleanGallery, cleanVideo, MAX_PHOTOS } = require("../utils/gallery");
+const brandProfile = (b) => ({
+  id: b.id, name: b.name, logoUrl: b.logoUrl, description: b.description, contactPhone: b.contactPhone,
+  contactEmail: b.contactEmail, gallery: parseGallery(b.gallery), videoUrl: b.videoUrl, maxPhotos: MAX_PHOTOS,
+});
+
+// GET /api/brand-partners/me/profile
+async function getMyProfile(req, res) {
+  const brand = await prisma.brand.findUnique({ where: { id: myBrandId(req) } });
+  if (!brand) return res.status(404).json({ error: "Brand not found." });
+  res.json({ brand: brandProfile(brand) });
+}
+
+// PUT /api/brand-partners/me/profile  { description?, logoUrl?, contactPhone?, gallery?: [url], videoUrl? }
+async function updateMyProfile(req, res) {
+  try {
+    const b = req.body || {};
+    const data = {};
+    if (b.description !== undefined) data.description = String(b.description || "").slice(0, 2000) || null;
+    if (b.logoUrl !== undefined) data.logoUrl = b.logoUrl || null;
+    if (b.contactPhone !== undefined) data.contactPhone = String(b.contactPhone || "").replace(/[^\d+ ]/g, "").slice(0, 20) || null;
+    if (b.gallery !== undefined) data.gallery = cleanGallery(b.gallery);
+    if (b.videoUrl !== undefined) data.videoUrl = cleanVideo(b.videoUrl);
+    const brand = await prisma.brand.update({ where: { id: myBrandId(req) }, data });
+    res.json({ brand: brandProfile(brand) });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "Could not save." });
+  }
+}
+
+// ---------- Schedule: orders by delivery day + closed days ----------
+const dayStart = (ymd) => new Date(`${ymd}T00:00:00.000Z`);
+const istYmd = (d) => new Date(new Date(d).getTime() + 330 * 60000).toISOString().slice(0, 10);
+
+// GET /api/brand-partners/me/schedule?month=2026-11
+async function mySchedule(req, res) {
+  const brandId = myBrandId(req);
+  const month = /^\d{4}-\d{2}$/.test(String(req.query.month)) ? String(req.query.month) : istYmd(new Date()).slice(0, 7);
+  const [y, m] = month.split("-").map(Number);
+  const from = new Date(Date.UTC(y, m - 1, 1) - 330 * 60000);
+  const to = new Date(Date.UTC(y, m, 1) - 330 * 60000);
+  const [orders, closures] = await Promise.all([
+    prisma.order.findMany({
+      where: { eventDate: { gte: from, lt: to }, status: { not: "CANCELLED" }, items: { some: { menuItem: { brandId } } } },
+      include: { items: { include: { menuItem: { select: { name: true, brandId: true, soldByWeight: true } } } }, user: { select: { name: true } } },
+      orderBy: { eventDate: "asc" },
+    }),
+    prisma.brandClosure.findMany({ where: { brandId, date: { gte: dayStart(`${month}-01`), lt: new Date(Date.UTC(y, m, 1)) } }, orderBy: { date: "asc" } }),
+  ]);
+  const days = {};
+  for (const o of orders) {
+    const key = istYmd(o.eventDate);
+    const items = o.items.filter((i) => i.menuItem.brandId === brandId);
+    (days[key] ||= []).push({
+      id: o.id, code: o.id.slice(0, 8).toUpperCase(), status: o.status, eventTime: o.eventTime, customer: o.user?.name,
+      guestCount: o.guestCount,
+      items: items.map((i) => ({ name: i.menuItem.name, quantity: i.quantity, soldByWeight: i.menuItem.soldByWeight })),
+      total: items.reduce((s, i) => s + i.price * i.quantity, 0),
+    });
+  }
+  res.json({
+    month, days,
+    closures: closures.map((c) => ({ id: c.id, date: c.date.toISOString().slice(0, 10), reason: c.reason })),
+  });
+}
+
+// POST /api/brand-partners/me/closures  { date: "2026-11-20", reason? }
+async function addClosure(req, res) {
+  const ymd = String(req.body?.date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return res.status(400).json({ error: "Pick a date." });
+  if (ymd < istYmd(new Date())) return res.status(400).json({ error: "That date has already passed." });
+  try {
+    const closure = await prisma.brandClosure.upsert({
+      where: { brandId_date: { brandId: myBrandId(req), date: dayStart(ymd) } },
+      update: { reason: req.body.reason ? String(req.body.reason).slice(0, 200) : null },
+      create: { brandId: myBrandId(req), date: dayStart(ymd), reason: req.body.reason ? String(req.body.reason).slice(0, 200) : null },
+    });
+    res.status(201).json({ closure: { id: closure.id, date: ymd, reason: closure.reason } });
+  } catch (err) {
+    res.status(500).json({ error: "Could not save the closed day." });
+  }
+}
+
+// DELETE /api/brand-partners/me/closures/:id
+async function removeClosure(req, res) {
+  const c = await prisma.brandClosure.findUnique({ where: { id: req.params.id } });
+  if (!c || c.brandId !== myBrandId(req)) return res.status(404).json({ error: "Not found." });
+  await prisma.brandClosure.delete({ where: { id: c.id } });
+  res.json({ ok: true });
+}
+
 module.exports = {
+  getMyProfile, updateMyProfile, mySchedule, addClosure, removeClosure,
   register, dashboard, myOrders,
   listMyMenu, createMyMenuItem, updateMyMenuItem, deleteMyMenuItem, cancelMyRequest,
   myInventory, adjustMyStock,

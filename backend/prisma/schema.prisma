@@ -602,13 +602,29 @@ model Brand {
   commissionPercent Float    @default(15)
   isActive          Boolean  @default(true)
   isApproved        Boolean  @default(false) // admin approves new self-registered brand partners before they go live
+  description       String?
+  gallery           String   @default("[]") // JSON array of up to 8 photo URLs
+  videoUrl          String?
   createdAt         DateTime @default(now())
 
+  closures     BrandClosure[]
   menuItems    MenuItem[]
   settlements  BrandSettlement[]
   locations    BrandLocation[]
   offers       Offer[]
   users        User[]
+}
+
+// A date a brand partner can't take orders (holiday, kitchen closed). Customers can't
+// order that brand's items for delivery on that date.
+model BrandClosure {
+  id      String   @id @default(uuid())
+  brandId String
+  brand   Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  date    DateTime
+  reason  String?
+
+  @@unique([brandId, date])
 }
 
 // A physical location/branch a brand partner operates from — shown to
@@ -676,6 +692,8 @@ model Venue {
   capacity      Int      @default(100)
   contactPhone  String?
   imageUrl      String?
+  gallery       String   @default("[]") // JSON array of up to 8 photo URLs
+  videoUrl      String?
   eventTypes    String   @default("[]") // JSON array of strings, e.g. ["Wedding","Birthday"]
   services      String   @default("[]") // JSON array: other services offered (decoration, DJ, parking...)
   foodOptions   String   @default("[]") // JSON array: Veg, Non-veg, Jain, Outside catering allowed...

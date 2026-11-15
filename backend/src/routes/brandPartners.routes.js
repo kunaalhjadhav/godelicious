@@ -27,5 +27,10 @@ router.get("/me/offers", bp.listMyOffers);
 router.post("/me/offers", bp.createMyOffer);
 
 router.get("/me/earnings", bp.myEarnings);
+router.get("/me/profile", bp.getMyProfile);
+router.put("/me/profile", bp.updateMyProfile);
+router.get("/me/schedule", bp.mySchedule);
+router.post("/me/closures", bp.addClosure);
+router.delete("/me/closures/:id", bp.removeClosure);
 
 module.exports = router;
