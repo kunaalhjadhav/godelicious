@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ClipboardList, Boxes, Utensils, PlusSquare, Warehouse, CalendarHeart,
   Tag, Tags, Image as ImageIcon, MessageCircle, Bell, BarChart3, Store, BadgePercent, Star,
-  SlidersHorizontal, LogOut, Truck, MapPin, ShieldCheck, Building2, Repeat, PackageOpen, Sparkles,
+  SlidersHorizontal, LogOut, Menu as MenuIcon, X, Truck, MapPin, ShieldCheck, Building2, Repeat, PackageOpen, Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
@@ -83,6 +83,10 @@ export default function Shell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const [navOpen, setNavOpen] = useState(false);
+
+  // Close the phone menu whenever the page changes.
+  useEffect(() => { setNavOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -96,14 +100,34 @@ export default function Shell({ children }) {
   }
 
   return (
-    <div className="min-h-screen flex bg-paper">
-      <aside className="w-64 shrink-0 bg-charcoal text-paper flex flex-col">
-        <div className="px-6 py-7 border-b border-white/10 flex items-center gap-2.5">
+    <div className="min-h-screen lg:flex bg-paper">
+      {/* Phone / tablet top bar */}
+      <header className="lg:hidden sticky top-0 z-30 bg-charcoal text-paper flex items-center gap-3 px-3 h-14 shadow">
+        <button onClick={() => setNavOpen(true)} aria-label="Open menu" className="p-2 -ml-1 rounded hover:bg-white/10">
+          <MenuIcon size={22} />
+        </button>
+        <img src="/logo.png?v=3" alt="" className="w-8 h-8 rounded-lg bg-paper object-cover" />
+        <div className="font-display text-lg leading-none truncate flex-1">
+          {NAV_GROUPS.flatMap((g) => g.items).find((i) => pathname?.startsWith(i.href))?.label || APP_NAME}
+        </div>
+      </header>
+
+      {navOpen && <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setNavOpen(false)} />}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-charcoal text-paper flex flex-col transform transition-transform duration-200
+          ${navOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:static lg:translate-x-0 lg:w-64 lg:shrink-0 lg:min-h-screen`}
+      >
+        <div className="px-6 py-6 lg:py-7 border-b border-white/10 flex items-center gap-2.5">
           <img src="/logo.png?v=3" alt={APP_NAME} className="w-11 h-11 rounded-xl bg-paper object-cover ring-1 ring-white/20" />
           <div>
             <div className="font-display text-xl tracking-tight leading-none">{APP_NAME}</div>
             <div className="text-xs text-white/50 mt-0.5 font-mono">{APP_TAGLINE}</div>
           </div>
+          <button onClick={() => setNavOpen(false)} aria-label="Close menu" className="lg:hidden ml-auto p-1.5 rounded hover:bg-white/10">
+            <X size={20} />
+          </button>
         </div>
 
         <nav className="flex-1 py-3 overflow-y-auto">
@@ -121,7 +145,7 @@ export default function Shell({ children }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2.5 px-6 py-2 text-sm border-l-2 transition-colors ${
+                    className={`flex items-center gap-2.5 px-6 py-2.5 lg:py-2 text-sm border-l-2 transition-colors ${
                       active
                         ? "border-saffron text-saffron bg-white/5"
                         : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
@@ -146,7 +170,7 @@ export default function Shell({ children }) {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-8 overflow-auto fade-in">{children}</main>
+      <main className="admin-main flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-x-hidden fade-in">{children}</main>
       <NewOrderWatcher />
     </div>
   );

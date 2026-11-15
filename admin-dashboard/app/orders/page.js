@@ -172,9 +172,9 @@ export default function OrdersPage() {
 
       <div className="space-y-3">
         {orders.map((order) => (
-          <div key={order.id} className="card-surface p-4 flex items-start gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
+          <div key={order.id} className="card-surface p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
                 <span className={`ticket-pill ${STATUS_COLORS[order.status]}`}>
                   {order.status.replace(/_/g, " ")}
                 </span>
@@ -261,13 +261,13 @@ export default function OrdersPage() {
                 Total: ₹{order.totalAmount.toFixed(2).replace(/\.00$/, "")}{order.gstAmount > 0 ? " (incl. GST)" : ""}
               </div>
             </div>
-            <div className="flex flex-col gap-2 shrink-0">
+            <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
               {partners.length > 0 && (
                 <div className="flex gap-1">
                   <select
                     value={selectedPartner[order.id] || ""}
                     onChange={(e) => setSelectedPartner({ ...selectedPartner, [order.id]: e.target.value })}
-                    className="text-xs border border-line rounded-sm px-1.5 py-1.5 bg-white max-w-[120px]"
+                    className="text-xs border border-line rounded-sm px-1.5 py-1.5 bg-white flex-1 sm:flex-none sm:max-w-[120px]"
                   >
                     <option value="">Rider…</option>
                     {partners.map((p) => (

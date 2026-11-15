@@ -125,3 +125,34 @@ body {
   outline: 2px solid #e8a33d;
   outline-offset: 2px;
 }
+
+/* ---------- Phone and small tablet layout for the admin pages ---------- */
+@media (max-width: 767px) {
+  /* Multi-column page layouts stack into one column */
+  .admin-main .grid-cols-2,
+  .admin-main .grid-cols-3,
+  .admin-main .grid-cols-5 { grid-template-columns: minmax(0, 1fr); }
+  .admin-main .grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-main .col-span-2,
+  .admin-main .col-span-3 { grid-column: auto; }
+  /* Small stat / chip rows stay side by side */
+  .admin-main .keep-cols.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-main .keep-cols.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* Page headers and toolbars wrap instead of squeezing */
+  .admin-main .flex.justify-between { flex-wrap: wrap; row-gap: 0.75rem; }
+  .admin-main h1 { font-size: 1.4rem; }
+
+  /* Wide tables scroll sideways inside their card */
+  .admin-main table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .admin-main th, .admin-main td { white-space: nowrap; }
+
+  /* Fixed-height panels (maps, chat) use the screen height */
+  .admin-main .h-\[70vh\] { height: 55vh; }
+
+  /* Bigger touch targets for form fields; 16px stops iPhone zooming on focus */
+  .admin-main input:not([type="checkbox"]):not([type="radio"]),
+  .admin-main select,
+  .admin-main textarea { font-size: 16px; }
+  .admin-main button { min-height: 2.25rem; }
+}
